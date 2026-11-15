@@ -36,12 +36,14 @@ def login_form(error="", roll=""):
                 method="post",
                 action="/login"
             ),
-            P("No account? Ask your Club Coordinator.", cls="text-sm text-muted text-center mt-4")
+            P(A("First time? Create the first Club Coordinator account →", href="/setup", cls="text-primary hover:underline text-xs"), cls="text-center mt-4") if _no_members() else P("No account? Ask your Club Coordinator.", cls="text-sm text-muted text-center mt-4")
         )
     )
 
 @rt("/login", methods=["GET"])
 def login_get(session):
+    if _no_members():
+        return go("/setup")
     return go("/") if current_user(session) else login_form()
 
 @rt("/login", methods=["POST"])
@@ -85,11 +87,11 @@ def setup_get(error: str = ""):
             H2("Create first Club Coordinator", cls="font-heading font-bold text-xl mb-4"),
             Div(error, cls="text-red-300 text-sm mb-3") if error else "",
             Form(
-                input_field("Name", "name"),
-                input_field("Roll number", "roll"),
-                input_field("Email", "email", type="email"),
+                input_field("Name", "name", placeholder="e.g. Krishna Kartheek"),
+                input_field("Roll number", "roll", placeholder="e.g. 26ET103047"),
+                input_field("Email", "email", type="email", placeholder="you@example.com"),
                 input_field("Password (min 8 characters)", "pw", type="password"),
-                btn_primary("Create", type="submit", cls="w-full"),
+                btn_primary("Create Account", type="submit", cls="w-full"),
                 method="post",
                 action="/setup"
             )
@@ -119,7 +121,18 @@ def health():
     except Exception as e:
         return {"status": "db_error", "detail": str(e)[:200]}
 
-import routes.dashboard, routes.stubs  # noqa: E402  (register routes)
+# Register all application routes
+import routes.dashboard
+import routes.tasks
+import routes.events
+import routes.team
+import routes.finance
+import routes.minutes
+import routes.learning
+import routes.files
+import routes.join
+import routes.activity
+import routes.settings
 
 if __name__ == "__main__":
     serve()
