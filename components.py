@@ -110,6 +110,33 @@ def format_inr(amount):
     except Exception:
         return f"₹{amount}"
 
+def hari_university_badge(cls=""):
+    return Div(
+        Img(src="/hari-university-logo.svg", alt="Hari University Logo", cls="w-8 h-8 rounded-full shadow-sm shrink-0 border border-white/20 bg-[#0b1f5c] p-0.5"),
+        Div(
+            Span("Hari University", cls="font-heading font-bold text-xs leading-none text-white block"),
+            Span("Affiliated Campus", cls="text-[9px] text-amber font-mono font-medium leading-none block mt-0.5"),
+            cls="hidden sm:block text-left"
+        ),
+        cls=f"flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl transition-colors {cls}"
+    )
+
+def footer():
+    return Footer(
+        Div(
+            Div(
+                Span("Built by Technoverse.", cls="font-bold text-white"),
+                Span(" All rights reserved.", cls="text-muted ml-1"),
+                cls="text-xs font-mono"
+            ),
+            Div(
+                Span("Technoverse Club • Official Technical Body of Hari University", cls="text-[11px] text-muted font-mono"),
+                cls="text-center sm:text-right"
+            ),
+            cls="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-8 border-t border-white/5 mt-16 text-center sm:text-left"
+        )
+    )
+
 NAV = [
     ("Dashboard", "/", "dashboard", 1),
     ("Tasks", "/tasks", "checklist", 1),
@@ -151,6 +178,7 @@ def page(session, user, title, *content):
                 cls="flex items-center gap-2"
             ),
             Div(
+                hari_university_badge(),
                 badge(f"{real.replace('_', ' ').upper()} R{RANKS.get(real, 1)}", "amber" if real == "club_coordinator" else "primary"),
                 avatar(user["name"]),
                 A(icon("logout"), href="/logout", cls="text-muted hover:text-white transition-colors", title="Sign out"),
@@ -167,7 +195,7 @@ def page(session, user, title, *content):
     )
 
     more = Div(
-        Div(onclick="document.getElementById('more-sheet').classList.add('hidden')", cls="absolute inset-0 bg-black/50"),
+        Div(onclick="document.getElementById('more-sheet').classList.add('hidden')", cls="absolute inset-0 bg-black/60 backdrop-blur-sm"),
         Div(
             H3("More Sections", cls="font-heading font-bold mb-3 text-lg"),
             *[_link(l, u, i) for l, u, i, _ in items[4:]],
@@ -195,7 +223,7 @@ def page(session, user, title, *content):
         top,
         Div(
             side,
-            Main(*content, id="main", cls="flex-1 min-w-0 p-4 md:p-8 pb-24"),
+            Main(*content, footer(), id="main", cls="flex-1 min-w-0 p-4 md:p-8 pb-24"),
             cls="flex"
         ),
         more,

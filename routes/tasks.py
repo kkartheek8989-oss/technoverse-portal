@@ -5,7 +5,7 @@ from components import *
 from auth import RANKS, can, log_activity
 
 @rt("/tasks", methods=["GET"])
-def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str = "all"):
+def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str = "all", edit_id: int = None):
     u = current_user(session)
     if not u:
         return go("/login")
@@ -25,22 +25,31 @@ def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str =
     except Exception:
         members = []
 
-    # Apply filters
-    if filter == "mine":
-        tasks = [t for t in tasks if t.get("assigned_to") == u["id"]]
-    if priority != "all":
-        tasks = [t for t in tasks if t.get("priority") == priority]
-    if sprint != "all":
-        tasks = [t for t in tasks if t.get("sprint") == sprint]
+    # Task to edit if edit_id is passed
+    task_to_edit = None
+    if edit_id:
+        for t in tasks:
+            if str(t.get("id")) == str(edit_id):
+                task_to_edit = t
+                break
 
-    todo_tasks = [t for t in tasks if t.get("status") == "todo"]
-    doing_tasks = [t for t in tasks if t.get("status") == "doing"]
-    done_tasks = [t for t in tasks if t.get("status") == "done"]
+    # Apply filters
+    filtered_tasks = tasks
+    if filter == "mine":
+        filtered_tasks = [t for t in filtered_tasks if t.get("assigned_to") == u["id"]]
+    if priority != "all":
+        filtered_tasks = [t for t in filtered_tasks if t.get("priority") == priority]
+    if sprint != "all":
+        filtered_tasks = [t for t in filtered_tasks if t.get("sprint") == sprint]
+
+    todo_tasks = [t for t in filtered_tasks if t.get("status") == "todo"]
+    doing_tasks = [t for t in filtered_tasks if t.get("status") == "doing"]
+    done_tasks = [t for t in filtered_tasks if t.get("status") == "done"]
 
     def task_card(t):
         assigned_name = t.get("assigned", {}).get("name") if t.get("assigned") else "Unassigned"
-        can_edit = rank >= 3 or t.get("assigned_to") == u["id"]
-        can_delete = rank >= 4
+        can_edit = (rank >= 3 or t.get("assigned_to") == u["id"] or t.get("created_by") == u["id"]) and not session.get("view_as")
+        can_delete = (rank >= 4 or t.get("created_by") == u["id"]) and not session.get("view_as")
         due = (t.get("due_at") or "")[:10]
         
         status_opts = [("todo", "To Do"), ("doing", "In Progress"), ("done", "Done")]
@@ -54,15 +63,23 @@ def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str =
             method="post",
             action=f"/tasks/{t['id']}/status",
             cls="inline-block"
-        ) if can_edit and not session.get("view_as") else badge(t.get("status", "todo").upper(), t.get("status", "todo"))
+        ) if can_edit else badge(t.get("status", "todo").upper(), t.get("status", "todo"))
+
+        edit_btn = A(
+            btn_ghost(icon("edit", "text-secondary text-xs"), type="button", cls="p-1 hover:bg-white/10 hover:text-white border-0"),
+            href=f"/tasks/{t['id']}/edit",
+            title="Edit Task",
+            cls="inline-block"
+        ) if can_edit else ""
 
         delete_btn = Form(
-            btn_ghost(icon("delete", "text-red-400 text-sm"), type="submit", cls="p-1 hover:bg-red-500/10 border-0"),
+            btn_ghost(icon("delete", "text-red-400 text-xs"), type="submit", cls="p-1 hover:bg-red-500/10 border-0"),
             method="post",
             action=f"/tasks/{t['id']}/delete",
-            onsubmit="return confirm('Delete this task?');",
+            onsubmit="return confirm('Delete this task permanently?');",
+            title="Delete Task",
             cls="inline-block"
-        ) if can_delete and not session.get("view_as") else ""
+        ) if can_delete else ""
 
         return card(
             Div(
@@ -71,7 +88,11 @@ def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str =
                     badge(t.get("priority", "medium").upper(), t.get("priority", "medium")),
                     cls="flex items-center gap-2"
                 ),
-                delete_btn,
+                Div(
+                    edit_btn,
+                    delete_btn,
+                    cls="flex items-center gap-1"
+                ),
                 cls="flex items-center justify-between mb-2"
             ),
             H4(t.get("title", ""), cls="font-semibold text-sm mb-1 leading-snug"),
@@ -113,6 +134,7 @@ def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str =
             cls="bg-dark/40 border border-white/5 rounded-2xl p-4 flex-1 min-w-[280px]"
         )
 
+    # 1. New Task Modal
     new_task_modal = Div(
         Div(onclick="document.getElementById('task-modal').classList.add('hidden')", cls="absolute inset-0 bg-black/60 backdrop-blur-sm"),
         card(
@@ -147,6 +169,49 @@ def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str =
         id="task-modal",
         cls="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"
     )
+
+    # 2. Edit Task Modal (Rendered if editing a task)
+    edit_task_modal = ""
+    if task_to_edit:
+        t_due = (task_to_edit.get("due_at") or "")[:10]
+        edit_task_modal = Div(
+            A(cls="absolute inset-0 bg-black/60 backdrop-blur-sm", href="/tasks"),
+            card(
+                Div(
+                    Div(
+                        H3(f"Edit Task #TK-{task_to_edit.get('code', task_to_edit.get('id'))}", cls="font-heading font-bold text-xl"),
+                        P("Update task properties, assignee, and progress state", cls="text-xs text-muted mt-0.5")
+                    ),
+                    A(icon("close"), href="/tasks", cls="text-muted hover:text-white"),
+                    cls="flex items-center justify-between mb-4"
+                ),
+                Form(
+                    input_field("Task Title", "title", value=task_to_edit.get("title", ""), required=True),
+                    textarea_field("Description", "description", value=task_to_edit.get("description", "") or "", rows=3),
+                    Div(
+                        select_field("Status", "status", [("todo", "To Do"), ("doing", "In Progress"), ("done", "Done")], selected=task_to_edit.get("status", "todo")),
+                        select_field("Priority", "priority", [("low", "Low"), ("medium", "Medium"), ("high", "High"), ("urgent", "Urgent")], selected=task_to_edit.get("priority", "medium")),
+                        cls="grid grid-cols-2 gap-3"
+                    ),
+                    Div(
+                        select_field("Sprint", "sprint", [("Sprint 1", "Sprint 1"), ("Sprint 2", "Sprint 2"), ("Sprint 3", "Sprint 3"), ("Backlog", "Backlog")], selected=task_to_edit.get("sprint", "Sprint 1")),
+                        select_field("Assign To", "assigned_to", [("", "Unassigned")] + [(m["id"], f"{m['name']} ({m['role']})") for m in members], selected=task_to_edit.get("assigned_to", ""), required=False),
+                        cls="grid grid-cols-2 gap-3"
+                    ),
+                    input_field("Due Date", "due_at", type="date", value=t_due, required=False),
+                    Div(
+                        A(btn_ghost("Cancel", type="button"), href="/tasks"),
+                        btn_primary("Save Changes", type="submit"),
+                        cls="flex justify-end gap-3 mt-6"
+                    ),
+                    method="post",
+                    action=f"/tasks/{task_to_edit['id']}/edit"
+                ),
+                cls="relative z-10 w-full max-w-lg mx-auto mt-16 max-h-[90vh] overflow-y-auto"
+            ),
+            id="edit-modal",
+            cls="fixed inset-0 z-50 flex items-center justify-center p-4"
+        )
 
     header = Div(
         Div(
@@ -199,7 +264,36 @@ def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str =
         cls="flex flex-col lg:flex-row gap-6 overflow-x-auto pb-6"
     )
 
-    return page(session, u, "Tasks", header, filters_bar, board, new_task_modal)
+    return page(session, u, "Tasks", header, filters_bar, board, new_task_modal, edit_task_modal)
+
+@rt("/tasks/{tid}/edit", methods=["GET"])
+def task_edit_get(session, tid: int):
+    return tasks_get(session, edit_id=tid)
+
+@rt("/tasks/{tid}/edit", methods=["POST"])
+def task_edit_post(session, tid: int, title: str, description: str = "", status: str = "todo", priority: str = "medium", sprint: str = "", assigned_to: str = "", due_at: str = ""):
+    u = current_user(session)
+    if not u or session.get("view_as"):
+        return go("/login")
+
+    payload = {
+        "title": title.strip(),
+        "description": description.strip() if description else None,
+        "status": status,
+        "priority": priority,
+        "sprint": sprint.strip() if sprint else None,
+        "assigned_to": assigned_to if assigned_to else None,
+        "due_at": f"{due_at}T23:59:59Z" if due_at else None
+    }
+
+    try:
+        res = supabase.table("tasks").update(payload).eq("id", tid).execute()
+        if res.data:
+            log_activity(session, "task_edited", "tasks", tid, f"Updated task: {title.strip()}")
+    except Exception as e:
+        print("Task update failed:", e)
+
+    return go("/tasks")
 
 @rt("/tasks/new", methods=["POST"])
 def tasks_new_post(session, title: str, description: str = "", priority: str = "medium", sprint: str = "", assigned_to: str = "", due_at: str = ""):
@@ -254,7 +348,7 @@ def task_delete(session, tid: int):
         return go("/tasks")
 
     try:
-        res = supabase.table("tasks").delete().eq("id", tid).execute()
+        supabase.table("tasks").delete().eq("id", tid).execute()
         log_activity(session, "task_deleted", "tasks", tid, "Deleted task")
     except Exception as e:
         print("Task delete failed:", e)

@@ -8,7 +8,7 @@ FLAGSHIPS = ["none", "CodeX", "AI Nexus", "CyberShield", "DataVerse"]
 CATEGORIES = ["Technical", "Workshop", "Hackathon", "Seminar", "Meetup", "Cultural"]
 
 @rt("/events", methods=["GET"])
-def events_get(session, flagship: str = "all", category: str = "all"):
+def events_get(session, flagship: str = "all", category: str = "all", edit_id: int = None):
     u = current_user(session)
     if not u:
         return go("/login")
@@ -38,11 +38,20 @@ def events_get(session, flagship: str = "all", category: str = "all"):
     except Exception:
         reg_counts = {}
 
+    # Event to edit
+    event_to_edit = None
+    if edit_id:
+        for ev in events:
+            if str(ev.get("id")) == str(edit_id):
+                event_to_edit = ev
+                break
+
     # Filters
+    filtered_events = events
     if flagship != "all":
-        events = [e for e in events if e.get("flagship") == flagship]
+        filtered_events = [e for e in filtered_events if e.get("flagship") == flagship]
     if category != "all":
-        events = [e for e in events if e.get("category") == category]
+        filtered_events = [e for e in filtered_events if e.get("category") == category]
 
     def event_card(e):
         eid = e["id"]
@@ -51,10 +60,10 @@ def events_get(session, flagship: str = "all", category: str = "all"):
         quota = e.get("quota") or 0
         is_full = quota > 0 and count >= quota
         start_str = (e.get("starts_at") or "")[:16].replace("T", " ")
-        end_str = (e.get("ends_at") or "")[:16].replace("T", " ")
         creator_name = e.get("creator", {}).get("name") if e.get("creator") else "Technoverse"
 
         flagship_badge = badge(e.get("flagship"), "amber") if e.get("flagship") and e.get("flagship") != "none" else ""
+        can_manage = (role == "event_coordinator" or rank >= 4) and not session.get("view_as")
 
         reg_button = Form(
             btn_primary(
@@ -71,10 +80,24 @@ def events_get(session, flagship: str = "all", category: str = "all"):
             action=f"/events/{eid}/register"
         ) if not session.get("view_as") else ""
 
+        edit_btn = A(
+            btn_ghost(icon("edit", "text-secondary text-xs"), type="button", cls="p-1 hover:bg-white/10 hover:text-white border-0"),
+            href=f"/events/{eid}/edit",
+            title="Edit Event"
+        ) if can_manage else ""
+
+        delete_btn = Form(
+            btn_ghost(icon("delete", "text-red-400 text-xs"), type="submit", cls="p-1 hover:bg-red-500/10 border-0"),
+            method="post",
+            action=f"/events/{eid}/delete",
+            onsubmit="return confirm('Delete this event permanently?');",
+            title="Delete Event"
+        ) if can_manage else ""
+
         manage_link = A(
             btn_ghost("Manage Event", icon("arrow_forward", "text-sm"), cls="text-xs"),
             href=f"/events/{eid}"
-        ) if can(role, "events", "manage") else ""
+        ) if can_manage else ""
 
         return card(
             Div(
@@ -84,9 +107,14 @@ def events_get(session, flagship: str = "all", category: str = "all"):
                     cls="flex items-center gap-2"
                 ),
                 Div(
-                    icon("groups", "text-muted text-sm"),
-                    Span(f"{count}/{quota if quota else '∞'}", cls="font-mono text-xs text-muted font-bold"),
-                    cls="flex items-center gap-1"
+                    edit_btn,
+                    delete_btn,
+                    Div(
+                        icon("groups", "text-muted text-sm ml-2"),
+                        Span(f"{count}/{quota if quota else '∞'}", cls="font-mono text-xs text-muted font-bold"),
+                        cls="flex items-center gap-1"
+                    ),
+                    cls="flex items-center"
                 ),
                 cls="flex items-center justify-between mb-3"
             ),
@@ -106,6 +134,7 @@ def events_get(session, flagship: str = "all", category: str = "all"):
             cls="hover:border-primary/40 transition-all flex flex-col justify-between"
         )
 
+    # 1. New Event Modal
     modal = Div(
         Div(onclick="document.getElementById('event-modal').classList.add('hidden')", cls="absolute inset-0 bg-black/60 backdrop-blur-sm"),
         card(
@@ -146,6 +175,51 @@ def events_get(session, flagship: str = "all", category: str = "all"):
         cls="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"
     )
 
+    # 2. Edit Event Modal
+    edit_modal = ""
+    if event_to_edit:
+        ev_start = (event_to_edit.get("starts_at") or "")[:16]
+        ev_end = (event_to_edit.get("ends_at") or "")[:16]
+        edit_modal = Div(
+            A(cls="absolute inset-0 bg-black/60 backdrop-blur-sm", href="/events"),
+            card(
+                Div(
+                    H3(f"Edit Event: {event_to_edit.get('title')}", cls="font-heading font-bold text-xl"),
+                    A(icon("close"), href="/events", cls="text-muted hover:text-white"),
+                    cls="flex items-center justify-between mb-4"
+                ),
+                Form(
+                    input_field("Event Title", "title", value=event_to_edit.get("title", ""), required=True),
+                    Div(
+                        select_field("Category", "category", [(c, c) for c in CATEGORIES], selected=event_to_edit.get("category")),
+                        select_field("Flagship Series", "flagship", [(f, f) for f in FLAGSHIPS], selected=event_to_edit.get("flagship", "none")),
+                        cls="grid grid-cols-2 gap-3"
+                    ),
+                    Div(
+                        input_field("Starts At", "starts_at", type="datetime-local", value=ev_start, required=True),
+                        input_field("Ends At", "ends_at", type="datetime-local", value=ev_end, required=True),
+                        cls="grid grid-cols-2 gap-3"
+                    ),
+                    Div(
+                        input_field("Venue / Room", "venue", value=event_to_edit.get("venue", ""), required=True),
+                        input_field("Capacity Quota", "quota", type="number", value=event_to_edit.get("quota", 0)),
+                        cls="grid grid-cols-2 gap-3"
+                    ),
+                    textarea_field("Description", "description", value=event_to_edit.get("description", "") or "", rows=3),
+                    Div(
+                        A(btn_ghost("Cancel", type="button"), href="/events"),
+                        btn_primary("Save Changes", type="submit"),
+                        cls="flex justify-end gap-3 mt-6"
+                    ),
+                    method="post",
+                    action=f"/events/{event_to_edit['id']}/edit"
+                ),
+                cls="relative z-10 w-full max-w-xl mx-auto mt-12 max-h-[90vh] overflow-y-auto"
+            ),
+            id="edit-event-modal",
+            cls="fixed inset-0 z-50 flex items-center justify-center p-4"
+        )
+
     header = Div(
         Div(
             H1("Events & Operations", cls="font-heading font-bold text-2xl"),
@@ -176,13 +250,61 @@ def events_get(session, flagship: str = "all", category: str = "all"):
     )
 
     grid = Div(
-        *[event_card(e) for e in events] or [
+        *[event_card(e) for e in filtered_events] or [
             Div(P("No events scheduled matching this filter.", cls="text-muted text-sm text-center py-12"), cls="col-span-full")
         ],
         cls="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
     )
 
-    return page(session, u, "Events", header, filter_chips, grid, modal)
+    return page(session, u, "Events", header, filter_chips, grid, modal, edit_modal)
+
+@rt("/events/{eid}/edit", methods=["GET"])
+def event_edit_get(session, eid: int):
+    return events_get(session, edit_id=eid)
+
+@rt("/events/{eid}/edit", methods=["POST"])
+def event_edit_post(session, eid: int, title: str, category: str, flagship: str, starts_at: str, ends_at: str, venue: str = "", quota: int = 0, description: str = ""):
+    u = current_user(session)
+    if not u or session.get("view_as"):
+        return go("/login")
+    if u["role"] != "event_coordinator" and RANKS.get(u["role"], 1) < 4:
+        return go("/events")
+
+    payload = {
+        "title": title.strip(),
+        "category": category,
+        "flagship": flagship,
+        "starts_at": f"{starts_at}:00Z" if len(starts_at) == 16 else starts_at,
+        "ends_at": f"{ends_at}:00Z" if len(ends_at) == 16 else ends_at,
+        "venue": venue.strip(),
+        "quota": int(quota or 0),
+        "description": description.strip() if description else None
+    }
+
+    try:
+        res = supabase.table("events").update(payload).eq("id", eid).execute()
+        if res.data:
+            log_activity(session, "event_edited", "events", eid, f"Updated event: {title.strip()}")
+    except Exception as e:
+        print("Event update error:", e)
+
+    return go("/events")
+
+@rt("/events/{eid}/delete", methods=["POST"])
+def event_delete_post(session, eid: int):
+    u = current_user(session)
+    if not u or session.get("view_as"):
+        return go("/login")
+    if u["role"] != "event_coordinator" and RANKS.get(u["role"], 1) < 4:
+        return go("/events")
+
+    try:
+        supabase.table("events").delete().eq("id", eid).execute()
+        log_activity(session, "event_deleted", "events", eid, f"Deleted event #{eid}")
+    except Exception as e:
+        print("Event delete error:", e)
+
+    return go("/events")
 
 @rt("/events/new", methods=["POST"])
 def events_new_post(session, title: str, category: str, flagship: str, starts_at: str, ends_at: str, venue: str = "", quota: int = 0, description: str = ""):
@@ -220,7 +342,6 @@ def events_register(session, eid: int):
         return go("/login")
 
     try:
-        # Check quota
         ev = supabase.table("events").select("quota").eq("id", eid).single().execute().data
         quota = ev.get("quota", 0) if ev else 0
         count = supabase.table("event_registrations").select("id", count="exact").eq("event_id", eid).execute().count or 0
