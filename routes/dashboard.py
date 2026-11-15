@@ -97,6 +97,64 @@ def dashboard_get(session):
         cls="bg-gradient-to-br from-[#0f172a]/90 via-[#0b1329]/90 to-[#080c14]/90 border border-blue-500/25 p-6 sm:p-8 mb-8 shadow-2xl relative overflow-hidden"
     )
 
+    # Executive Role-Specific Action Banners
+    exec_banner = ""
+    if u["role"] == "president":
+        exec_banner = card(
+            Div(
+                Div(
+                    Span("PRESIDENTIAL EXECUTIVE DESK", cls="text-[11px] font-mono font-bold tracking-wider text-amber-400 uppercase bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full inline-block mb-2"),
+                    H2("Presidential Governance & Mandates", cls="text-xl font-heading font-bold text-white"),
+                    P("You are authenticated with supreme constitutional authority over Technoverse Club. Issue executive decrees, grant financial sanctions, or provision committee members.", cls="text-xs text-slate-300 mt-1 max-w-2xl"),
+                    cls="flex-1"
+                ),
+                Div(
+                    A(btn_primary(icon("gavel", "text-sm mr-1.5"), "Open Presidential Desk", cls="py-2.5 px-4 text-xs font-semibold"), href="/president"),
+                    A(btn_ghost(icon("person_add", "text-sm mr-1.5"), "Provision Members", cls="py-2.5 px-4 text-xs font-semibold"), href="/team"),
+                    cls="flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0"
+                ),
+                cls="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            ),
+            cls="mb-8 border border-amber-500/30 bg-gradient-to-r from-amber-950/30 via-slate-900/60 to-slate-900/40 p-5 shadow-xl"
+        )
+    elif u["role"] == "vice_president":
+        exec_banner = card(
+            Div(
+                Div(
+                    Span("VICE-PRESIDENTIAL OPERATIONS COMMAND", cls="text-[11px] font-mono font-bold tracking-wider text-cyan-400 uppercase bg-cyan-500/10 border border-cyan-500/30 px-3 py-1 rounded-full inline-block mb-2"),
+                    H2("VP Operations & Task Allocation", cls="text-xl font-heading font-bold text-white"),
+                    P("You are authenticated with executive deputy authority. Dispatch inter-wing operational directives, manage Hari University venue permits, and resolve escalated committee items.", cls="text-xs text-slate-300 mt-1 max-w-2xl"),
+                    cls="flex-1"
+                ),
+                Div(
+                    A(btn_primary(icon("military_tech", "text-sm mr-1.5"), "Open VP Operations Command", cls="py-2.5 px-4 text-xs font-semibold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"), href="/vice-president"),
+                    A(btn_ghost(icon("domain_verification", "text-sm mr-1.5"), "Campus Venue Clearances", cls="py-2.5 px-4 text-xs font-semibold"), href="/vice-president"),
+                    cls="flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0"
+                ),
+                cls="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            ),
+            cls="mb-8 border border-cyan-500/30 bg-gradient-to-r from-cyan-950/30 via-slate-900/60 to-slate-900/40 p-5 shadow-xl"
+        )
+    elif u["role"] == "club_coordinator":
+        exec_banner = card(
+            Div(
+                Div(
+                    Span("SUPERVISORY FACULTY OVERSIGHT", cls="text-[11px] font-mono font-bold tracking-wider text-amber-400 uppercase bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full inline-block mb-2"),
+                    H2("Club Coordinator Master Console", cls="text-xl font-heading font-bold text-white"),
+                    P("Supervisory faculty authority over the Technoverse Club executive committee, presidential governance, and operational command.", cls="text-xs text-slate-300 mt-1 max-w-2xl"),
+                    cls="flex-1"
+                ),
+                Div(
+                    A(btn_primary(icon("gavel", "text-sm mr-1.5"), "Presidential Desk", cls="py-2 px-3 text-xs"), href="/president"),
+                    A(btn_primary(icon("military_tech", "text-sm mr-1.5"), "VP Operations", cls="py-2 px-3 text-xs bg-cyan-600 hover:bg-cyan-500"), href="/vice-president"),
+                    A(btn_ghost(icon("person_add", "text-sm mr-1.5"), "Provision Members", cls="py-2 px-3 text-xs"), href="/team"),
+                    cls="flex flex-wrap items-center gap-2 mt-3 sm:mt-0"
+                ),
+                cls="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            ),
+            cls="mb-8 border border-amber-500/30 bg-gradient-to-r from-indigo-950/30 via-slate-900/60 to-slate-900/40 p-5 shadow-xl"
+        )
+
     # Core Pillars Section
     pillars = Div(
         card(
@@ -228,6 +286,7 @@ def dashboard_get(session):
         session, u, "Home",
         Div(view_as, cls="flex justify-end mb-4") if view_as else "",
         hero_banner,
+        exec_banner,
         pillars,
         stats,
         events_section,

@@ -164,6 +164,13 @@ def page(session, user, title, *content):
     rank = RANKS.get(role, 1)
     items = [n for n in NAV if rank >= n[3]]
 
+    # Exclusive executive desks for President and Vice President
+    if role in ["president", "club_coordinator"]:
+        items.insert(1, ("President Desk", "/president", "gavel", 4))
+    if role in ["vice_president", "club_coordinator"]:
+        idx = 2 if role == "club_coordinator" else 1
+        items.insert(idx, ("VP Operations", "/vice-president", "military_tech", 4))
+
     banner = Div(
         Span(f"Viewing as: {role.replace('_', ' ').title()} (read-only preview)"),
         Form(btn("Exit Preview", cls="bg-dark text-amber border-amber px-2.5 py-1 text-xs"), method="post", action="/view-as/reset"),

@@ -147,6 +147,8 @@ def health():
 
 # Register all application routes
 import routes.dashboard
+import routes.president
+import routes.vice_president
 import routes.tasks
 import routes.events
 import routes.team
