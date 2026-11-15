@@ -3,6 +3,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, can, log_activity
+from site_config import get_site_config
 
 @rt("/", methods=["GET"])
 def dashboard_get(session):
@@ -70,20 +71,21 @@ def dashboard_get(session):
         method="post", action="/view-as", cls="flex items-center gap-2"
     ) if RANKS.get(u["role"], 1) >= 4 and not session.get("view_as") else ""
 
+    cfg = get_site_config()
+
     # MNC Corporate Hero Banner
     hero_banner = card(
         Div(
             Div(
                 Div(
-                    badge("HARI UNIVERSITY", "amber"),
-                    badge("EXECUTIVE TECHNICAL BODY", "primary"),
+                    badge(f"{cfg.get('university_name', 'HARI UNIVERSITY').upper()} • {cfg.get('university_status', 'DEEMED TO BE UNIVERSITY').upper()}", "amber"),
+                    badge("OFFICIAL TECHNICAL BODY", "primary"),
                     cls="flex flex-wrap items-center gap-2 mb-3"
                 ),
                 H1(f"Welcome back, {u['name']}", cls="font-heading font-extrabold text-3xl sm:text-4xl text-white mb-2 leading-tight tracking-tight"),
-                P("Code • Innovate • Secure • Transform", cls="text-xs font-mono text-amber-400 font-bold tracking-widest uppercase mb-3"),
+                P(cfg.get("site_tagline", "Code • Innovate • Secure • Transform"), cls="text-xs font-mono text-amber-400 font-bold tracking-widest uppercase mb-3"),
                 P(
-                    "Empowering next-generation engineers, researchers, and builders at Hari University through "
-                    "high-impact technical development, competitive hackathons, and enterprise-grade engineering tracks.",
+                    cfg.get("hero_subtext", "Empowering next-generation engineers, researchers, and builders at Hari University through high-impact technical development, competitive hackathons, and enterprise-grade engineering tracks."),
                     cls="text-sm text-slate-300 leading-relaxed max-w-2xl"
                 ),
                 cls="flex-1"
@@ -105,13 +107,14 @@ def dashboard_get(session):
                 Div(
                     Span("PRESIDENTIAL EXECUTIVE DESK", cls="text-[11px] font-mono font-bold tracking-wider text-amber-400 uppercase bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full inline-block mb-2"),
                     H2("Presidential Governance & Mandates", cls="text-xl font-heading font-bold text-white"),
-                    P("You are authenticated with supreme constitutional authority over Technoverse Club. Issue executive decrees, grant financial sanctions, or provision committee members.", cls="text-xs text-slate-300 mt-1 max-w-2xl"),
+                    P("You are authenticated with supreme constitutional authority over Technoverse Club. Issue executive decrees, grant financial sanctions, or manage website content via Admin Control.", cls="text-xs text-slate-300 mt-1 max-w-2xl"),
                     cls="flex-1"
                 ),
                 Div(
-                    A(btn_primary(icon("gavel", "text-sm mr-1.5"), "Open Presidential Desk", cls="py-2.5 px-4 text-xs font-semibold"), href="/president"),
-                    A(btn_ghost(icon("person_add", "text-sm mr-1.5"), "Provision Members", cls="py-2.5 px-4 text-xs font-semibold"), href="/team"),
-                    cls="flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0"
+                    A(btn_primary(icon("gavel", "text-sm mr-1.5"), "Presidential Desk", cls="py-2.5 px-3.5 text-xs font-semibold"), href="/president"),
+                    A(btn_danger(icon("admin_panel_settings", "text-sm mr-1.5"), "Admin Control", cls="py-2.5 px-3.5 text-xs font-semibold"), href="/admin-control"),
+                    A(btn_ghost(icon("person_add", "text-sm mr-1.5"), "Provision Members", cls="py-2.5 px-3.5 text-xs font-semibold"), href="/team"),
+                    cls="flex flex-wrap items-center gap-2 mt-3 sm:mt-0"
                 ),
                 cls="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             ),
@@ -141,11 +144,12 @@ def dashboard_get(session):
                 Div(
                     Span("SUPERVISORY FACULTY OVERSIGHT", cls="text-[11px] font-mono font-bold tracking-wider text-amber-400 uppercase bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full inline-block mb-2"),
                     H2("Club Coordinator Master Console", cls="text-xl font-heading font-bold text-white"),
-                    P("Supervisory faculty authority over the Technoverse Club executive committee, presidential governance, and operational command.", cls="text-xs text-slate-300 mt-1 max-w-2xl"),
+                    P("Supervisory faculty authority over the Technoverse Club executive committee, presidential governance, and autonomous CMS administration.", cls="text-xs text-slate-300 mt-1 max-w-2xl"),
                     cls="flex-1"
                 ),
                 Div(
                     A(btn_primary(icon("gavel", "text-sm mr-1.5"), "Presidential Desk", cls="py-2 px-3 text-xs"), href="/president"),
+                    A(btn_danger(icon("admin_panel_settings", "text-sm mr-1.5"), "Admin Control", cls="py-2 px-3 text-xs"), href="/admin-control"),
                     A(btn_primary(icon("military_tech", "text-sm mr-1.5"), "VP Operations", cls="py-2 px-3 text-xs bg-cyan-600 hover:bg-cyan-500"), href="/vice-president"),
                     A(btn_ghost(icon("person_add", "text-sm mr-1.5"), "Provision Members", cls="py-2 px-3 text-xs"), href="/team"),
                     cls="flex flex-wrap items-center gap-2 mt-3 sm:mt-0"
@@ -155,30 +159,30 @@ def dashboard_get(session):
             cls="mb-8 border border-amber-500/30 bg-gradient-to-r from-indigo-950/30 via-slate-900/60 to-slate-900/40 p-5 shadow-xl"
         )
 
-    # Core Pillars Section
+    # Core Pillars Section (Dynamic from Site Config)
     pillars = Div(
         card(
             Div(icon("code", "text-blue-400 text-2xl mb-3")),
-            H4("Software & Systems", cls="font-heading font-bold text-base mb-1.5 text-white"),
-            P("Building scalable full-stack applications, open-source utilities, and developer tooling.", cls="text-xs text-slate-400 leading-relaxed"),
+            H4(cfg.get("pillar1_title", "Software & Systems"), cls="font-heading font-bold text-base mb-1.5 text-white"),
+            P(cfg.get("pillar1_desc", "Building scalable full-stack applications, open-source utilities, and developer tooling."), cls="text-xs text-slate-400 leading-relaxed"),
             p="p-5"
         ),
         card(
             Div(icon("smart_toy", "text-amber-400 text-2xl mb-3")),
-            H4("AI & Machine Learning", cls="font-heading font-bold text-base mb-1.5 text-white"),
-            P("Autonomous agentic swarms, fine-tuned neural models, and enterprise RAG pipelines.", cls="text-xs text-slate-400 leading-relaxed"),
+            H4(cfg.get("pillar2_title", "AI & Machine Learning"), cls="font-heading font-bold text-base mb-1.5 text-white"),
+            P(cfg.get("pillar2_desc", "Autonomous agentic swarms, fine-tuned neural models, and enterprise RAG pipelines."), cls="text-xs text-slate-400 leading-relaxed"),
             p="p-5"
         ),
         card(
             Div(icon("security", "text-emerald-400 text-2xl mb-3")),
-            H4("Cyber Defense & CTF", cls="font-heading font-bold text-base mb-1.5 text-white"),
-            P("Offensive security research, ethical penetration testing, and national security challenges.", cls="text-xs text-slate-400 leading-relaxed"),
+            H4(cfg.get("pillar3_title", "Cyber Defense & CTF"), cls="font-heading font-bold text-base mb-1.5 text-white"),
+            P(cfg.get("pillar3_desc", "Offensive security research, ethical penetration testing, and national security challenges."), cls="text-xs text-slate-400 leading-relaxed"),
             p="p-5"
         ),
         card(
             Div(icon("cloud", "text-cyan-400 text-2xl mb-3")),
-            H4("Cloud & Infrastructure", cls="font-heading font-bold text-base mb-1.5 text-white"),
-            P("Microservices, containerization, distributed databases, and high-availability operations.", cls="text-xs text-slate-400 leading-relaxed"),
+            H4(cfg.get("pillar4_title", "Cloud & Infrastructure"), cls="font-heading font-bold text-base mb-1.5 text-white"),
+            P(cfg.get("pillar4_desc", "Microservices, containerization, distributed databases, and high-availability operations."), cls="text-xs text-slate-400 leading-relaxed"),
             p="p-5"
         ),
         cls="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"

@@ -1,5 +1,6 @@
 from fasthtml.common import *
 from auth import RANKS
+from site_config import get_site_config
 
 def icon(n, cls=""):
     return Span(n, cls=f"material-symbols-outlined {cls}")
@@ -115,7 +116,7 @@ def hari_university_badge(cls=""):
         Img(src="/hari-university-logo.png", alt="Hari University Official Seal", cls="w-8 h-8 object-contain shrink-0 drop-shadow"),
         Div(
             Span("Hari University", cls="font-heading font-bold text-xs leading-none text-white block"),
-            Span("Affiliated Campus", cls="text-[9px] text-amber-400 font-mono font-medium leading-none block mt-0.5"),
+            Span("Deemed to be University", cls="text-[9px] text-amber-400 font-mono font-medium leading-none block mt-0.5"),
             cls="hidden sm:block text-left"
         ),
         cls=f"flex items-center gap-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 px-3 py-1.5 rounded-xl transition-all {cls}"
@@ -170,6 +171,25 @@ def page(session, user, title, *content):
     if role in ["vice_president", "club_coordinator"]:
         idx = 2 if role == "club_coordinator" else 1
         items.insert(idx, ("VP Operations", "/vice-president", "military_tech", 4))
+    # Secret Admin Control CMS suite exclusively for President and Club Coordinator
+    if role in ["president", "club_coordinator"]:
+        items.append(("Admin Control", "/admin-control", "admin_panel_settings", 4))
+
+    cfg = get_site_config()
+    alert_banner = ""
+    if cfg.get("alert_banner_enabled") == "true" and cfg.get("alert_banner_text"):
+        b_type = cfg.get("alert_banner_type", "amber")
+        col_cls = {
+            "amber": "bg-amber-500 text-slate-950 font-bold",
+            "red": "bg-red-600 text-white font-bold",
+            "primary": "bg-blue-600 text-white font-bold",
+            "emerald": "bg-emerald-600 text-white font-bold"
+        }.get(b_type, "bg-amber-500 text-slate-950")
+        alert_banner = Div(
+            icon("campaign", "text-lg mr-2"),
+            Span(cfg.get("alert_banner_text"), cls="text-xs sm:text-sm font-semibold"),
+            cls=f"{col_cls} px-4 py-2 flex items-center justify-center text-center font-mono sticky top-0 z-40 shadow-lg"
+        )
 
     banner = Div(
         Span(f"Viewing as: {role.replace('_', ' ').title()} (read-only preview)"),
@@ -226,6 +246,7 @@ def page(session, user, title, *content):
 
     return (
         Title(f"{title} | Technoverse"),
+        alert_banner,
         banner,
         top,
         Div(

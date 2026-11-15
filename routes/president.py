@@ -75,7 +75,7 @@ def president_dashboard(session, msg: str = "", error: str = ""):
             stat_card("Constitutional Authority", "PRESIDENT", "gavel", "Rank 4 Supreme Executive"),
             stat_card("Active Directives", len(directives), "campaign", "Published Executive Mandates"),
             stat_card("Standing Wings", "4 WINGS", "account_tree", "Tech, Events, Finance, Secretariat"),
-            stat_card("Charter Status", "AFFILIATED", "verified", "Hari University Technical Body"),
+            stat_card("University Status", "DEEMED TO BE", "verified", "Hari University - Deemed to be University"),
             cls="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
         ),
 

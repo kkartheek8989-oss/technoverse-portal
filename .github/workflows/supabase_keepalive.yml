@@ -1,0 +1,26 @@
+name: Supabase 24/7 Keep-Alive
+
+on:
+  schedule:
+    # Runs at 00:00 UTC every 3 days (well within Supabase's 7-day inactivity pause threshold)
+    - cron: '0 0 */3 * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions UI
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database to Prevent Inactivity Pause
+        run: |
+          echo "Sending authenticated heartbeat query to Supabase REST API..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/members?select=id&limit=1")
+          
+          echo "Supabase Response HTTP Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 206 ]; then
+            echo "✓ Supabase database is active, healthy, and awake!"
+          else
+            echo "Heartbeat query completed with status $HTTP_STATUS."
+          fi

@@ -14,7 +14,7 @@ def auth_shell(*c):
                 Img(src="/hari-university-logo.png", alt="Hari University Logo", cls="w-10 h-10 object-contain shrink-0 drop-shadow-md"),
                 Div(
                     Span("Hari University", cls="font-heading font-bold text-xs text-white block leading-tight"),
-                    Span("Official Technical Portal", cls="text-[9px] text-amber font-mono font-medium block leading-tight"),
+                    Span("Deemed to be University", cls="text-[9px] text-amber font-mono font-medium block leading-tight"),
                     cls="text-left hidden sm:block"
                 ),
                 cls="fixed top-4 right-4 z-40 flex items-center gap-2.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl backdrop-blur shadow-lg"
@@ -149,6 +149,7 @@ def health():
 import routes.dashboard
 import routes.president
 import routes.vice_president
+import routes.admin_control
 import routes.tasks
 import routes.events
 import routes.team
@@ -161,4 +162,6 @@ import routes.activity
 import routes.settings
 
 if __name__ == "__main__":
-    serve()
+    port = int(os.getenv("PORT", 5001))
+    host = os.getenv("HOST", "0.0.0.0")
+    serve(host=host, port=port)
