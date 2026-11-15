@@ -29,7 +29,7 @@ def president_dashboard(session, msg: str = "", error: str = ""):
 
     # Fetch team leads overview
     try:
-        leads = supabase.table("members").select("name, roll, role, branch, designation").in_("role", ["vice_president", "secretary", "treasurer", "technical_lead", "event_coordinator"]).execute().data or []
+        leads = supabase.table("members").select("name, roll, role, branch").in_("role", ["vice_president", "secretary", "treasurer", "technical_lead", "event_coordinator"]).execute().data or []
     except Exception as e:
         print("Error fetching leads:", e)
         leads = []

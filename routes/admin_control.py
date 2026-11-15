@@ -1,4 +1,5 @@
 from fasthtml.common import *
+from starlette.requests import Request
 from core import rt, current_user, go, supabase
 from components import *
 from auth import log_activity
@@ -117,13 +118,13 @@ def admin_control_get(session, msg: str = "", error: str = ""):
             select_field("Emergency Alert Banner Active?", "alert_banner_enabled", [
                 ("false", "Disabled (Do not show banner)"),
                 ("true", "Active (Show banner at top of portal)")
-            ], value=cfg.get("alert_banner_enabled")),
+            ], selected=cfg.get("alert_banner_enabled")),
             select_field("Alert Severity Color", "alert_banner_type", [
                 ("amber", "Amber Warning (High Visibility)"),
                 ("red", "Red Critical (Urgent Emergency)"),
                 ("primary", "Blue Info (General Executive Notice)"),
                 ("emerald", "Green Success (Milestone Celebration)")
-            ], value=cfg.get("alert_banner_type")),
+            ], selected=cfg.get("alert_banner_type")),
             cls="grid grid-cols-1 md:grid-cols-2 gap-4"
         ),
         input_field("Emergency Alert Message", "alert_banner_text", value=cfg.get("alert_banner_text")),
@@ -149,7 +150,7 @@ def admin_control_get(session, msg: str = "", error: str = ""):
             select_field("Portal Maintenance Mode", "maintenance_mode", [
                 ("false", "Normal Operation (Portal fully accessible)"),
                 ("true", "Maintenance Mode (Display maintenance notice)")
-            ], value=cfg.get("maintenance_mode")),
+            ], selected=cfg.get("maintenance_mode")),
             input_field("Maintenance Notice Text", "maintenance_message", value=cfg.get("maintenance_message")),
             cls="grid grid-cols-1 md:grid-cols-2 gap-4"
         ),
@@ -188,12 +189,13 @@ def admin_control_get(session, msg: str = "", error: str = ""):
     )
 
 @rt("/admin-control/save", methods=["POST"])
-def admin_control_save_post(session, **form_data):
+async def admin_control_save_post(session, req: Request):
     u = current_user(session)
     if not u or u["role"] not in ["president", "club_coordinator"]:
         return go("/login")
 
-    # Sanitize and bulk update
+    form = await req.form()
+    form_data = {k: str(v) for k, v in form.items()}
     bulk_update_settings(form_data)
     log_activity(session, "cms_update", "settings", None, f"Admin {u['name']} ({u['role']}) updated website configuration via Admin Control")
 

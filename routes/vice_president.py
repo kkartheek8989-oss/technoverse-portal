@@ -21,28 +21,28 @@ def vice_president_dashboard(session, msg: str = "", error: str = ""):
     if user["role"] not in ["vice_president", "club_coordinator"]:
         return go("/?error=Access+Restricted:+The+VP+Operations+Command+is+exclusively+reserved+for+the+Vice+President.")
 
-    # Fetch recent VP Dispatches from tasks or activity
+    # Fetch recent VP Dispatches from tasks
     try:
-        dispatches = supabase.table("tasks").select("*").eq("domain", "Operations").order("created_at", desc=True).limit(6).execute().data or []
+        dispatches = supabase.table("tasks").select("*").ilike("title", "%[VP DISPATCH]%").order("created_at", desc=True).limit(6).execute().data or []
     except Exception as e:
         print("Error fetching VP dispatches:", e)
         dispatches = []
 
     # Fetch leads to whom VP can delegate operational tasks
     try:
-        leads = supabase.table("members").select("id, name, roll, role, branch, designation").in_("role", ["technical_lead", "event_coordinator", "secretary", "treasurer"]).execute().data or []
+        leads = supabase.table("members").select("id, name, roll, role, branch").in_("role", ["technical_lead", "event_coordinator", "secretary", "treasurer"]).execute().data or []
     except Exception as e:
         print("Error fetching leads for VP:", e)
         leads = []
 
     # Fetch pending action items from minutes
     try:
-        action_items = supabase.table("action_items").select("*").eq("completed", False).limit(6).execute().data or []
+        action_items = supabase.table("action_items").select("*").limit(6).execute().data or []
     except Exception as e:
         print("Error fetching action items:", e)
         action_items = []
 
-    lead_options = [(m["id"], f"{m['name']} ({m.get('designation') or m['role'].replace('_', ' ').title()} • {m['branch']})") for m in leads]
+    lead_options = [(m["id"], f"{m['name']} ({m['role'].replace('_', ' ').title()} • {m['branch']})") for m in leads]
     if not lead_options:
         lead_options = [("", "No leads available")]
 
@@ -242,7 +242,6 @@ def vp_dispatch_post(session, title: str, assigned_to: str, priority: str, descr
             "status": "todo",
             "priority": priority or "high",
             "sprint": "Active Sprint",
-            "domain": "Operations",
             "assigned_to": assigned_to or None,
             "created_by": user["id"],
             "created_at": now_iso
@@ -262,7 +261,7 @@ def vp_clear_item_post(session, item_id: str):
         return go("/login")
 
     try:
-        supabase.table("action_items").update({"completed": True}).eq("id", item_id).execute()
+        supabase.table("action_items").delete().eq("id", item_id).execute()
         log_activity(session, "clear_action_item", "minutes", item_id, f"VP {user['name']} cleared action item #{item_id}")
     except Exception as e:
         print("Error clearing action item:", e)
