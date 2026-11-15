@@ -43,9 +43,9 @@ for m in committee:
     }, on_conflict="roll").execute()
     print(f"✓ Provisioned {m['name']:<15} | Roll: {m['roll']:<12} | Role: {m['role']:<18} | PW: {pw}")
 
-# Ensure Club Coordinator account exists
+# Ensure Chandini.B account exists
 client.table("members").upsert({
-    "name": "Club Coordinator",
+    "name": "Chandini.B",
     "roll": "COORD01",
     "email": "coordinator@hari.edu.in",
     "branch": "CSE",
@@ -54,4 +54,4 @@ client.table("members").upsert({
     "year": 4,
     "active": True
 }, on_conflict="roll").execute()
-print("✓ Verified Club Coordinator (COORD01 / coordinator123)")
+print("✓ Verified Chandini.B (COORD01 / coordinator123)")

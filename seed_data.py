@@ -32,7 +32,7 @@ def seed():
 
     # 1. Core Leadership Team
     team_members = [
-        {"name": "Krishna Kartheek", "roll": "COORD01", "email": "coordinator@technoverse.org", "role": "club_coordinator", "pw": "coordinator123", "branch": "CSE", "year": 4},
+        {"name": "Chandini.B", "roll": "COORD01", "email": "coordinator@technoverse.org", "role": "club_coordinator", "pw": "coordinator123", "branch": "CSE", "year": 4},
         {"name": "Aarav Sharma", "roll": "PRES01", "email": "president@technoverse.org", "role": "president", "pw": "president123", "branch": "CSE", "year": 4},
         {"name": "Ananya Iyer", "roll": "VP01", "email": "vp@technoverse.org", "role": "vice_president", "pw": "vicepres123", "branch": "IT", "year": 3},
         {"name": "Vikram Malhotra", "roll": "SEC01", "email": "secretary@technoverse.org", "role": "secretary", "pw": "secretary123", "branch": "ECE", "year": 3},
@@ -179,7 +179,7 @@ def seed():
     print("\n8. Recording Initial Audit Rows...")
     try:
         client.table("activity").insert({
-            "member_name": "Krishna Kartheek",
+            "member_name": "Chandini.B",
             "role": "club_coordinator",
             "action": "system_bootstrap",
             "section": "auth",
