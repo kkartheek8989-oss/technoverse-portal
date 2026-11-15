@@ -112,13 +112,13 @@ def format_inr(amount):
 
 def hari_university_badge(cls=""):
     return Div(
-        Img(src="/hari-university-logo.svg", alt="Hari University Logo", cls="w-8 h-8 rounded-full shadow-sm shrink-0 border border-white/20 bg-[#0b1f5c] p-0.5"),
+        Img(src="/hari-university-logo.png", alt="Hari University Official Seal", cls="w-8 h-8 object-contain shrink-0 drop-shadow"),
         Div(
             Span("Hari University", cls="font-heading font-bold text-xs leading-none text-white block"),
             Span("Affiliated Campus", cls="text-[9px] text-amber font-mono font-medium leading-none block mt-0.5"),
             cls="hidden sm:block text-left"
         ),
-        cls=f"flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl transition-colors {cls}"
+        cls=f"flex items-center gap-2.5 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl transition-colors {cls}"
     )
 
 def footer():

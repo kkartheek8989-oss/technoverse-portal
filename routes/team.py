@@ -48,10 +48,13 @@ def team_get(session, role_filter: str = "all", search: str = ""):
         s = search.lower().strip()
         members = [m for m in members if s in (m.get("name") or "").lower() or s in (m.get("roll") or "").lower() or s in (m.get("email") or "").lower()]
 
+    # Account creation is STRICTLY restricted to Club Coordinator and President
+    can_provision_accounts = (u["role"] in ("club_coordinator", "president")) and not session.get("view_as")
+
     def member_card(m):
         m_role = m.get("role", "member")
         m_rank = RANKS.get(m_role, 1)
-        can_manage = (rank == 5) or (rank >= 4 and m_rank < 4)
+        can_manage_role = (u["role"] == "club_coordinator") or (u["role"] == "president" and m_rank < 4)
         is_self = (m["id"] == u["id"])
 
         role_form = Form(
@@ -64,7 +67,7 @@ def team_get(session, role_filter: str = "all", search: str = ""):
             method="post",
             action=f"/team/{m['id']}/role",
             cls="inline-block"
-        ) if can_manage and not is_self and not session.get("view_as") else (
+        ) if can_manage_role and not is_self and not session.get("view_as") else (
             badge(f"{m_role.replace('_', ' ').upper()} (R{m_rank})", ROLE_COLORS.get(m_role, "secondary"))
         )
 
@@ -92,7 +95,10 @@ def team_get(session, role_filter: str = "all", search: str = ""):
         Div(onclick="document.getElementById('member-modal').classList.add('hidden')", cls="absolute inset-0 bg-black/60 backdrop-blur-sm"),
         card(
             Div(
-                H3("Add Core Team Member", cls="font-heading font-bold text-xl"),
+                Div(
+                    H3("Provision Member Account", cls="font-heading font-bold text-xl"),
+                    P("Restricted to Club Coordinator & President", cls="text-xs text-amber font-mono mt-0.5")
+                ),
                 Button(icon("close"), onclick="document.getElementById('member-modal').classList.add('hidden')", type="button", cls="text-muted hover:text-white bg-transparent border-0 cursor-pointer"),
                 cls="flex items-center justify-between mb-4"
             ),
@@ -100,7 +106,7 @@ def team_get(session, role_filter: str = "all", search: str = ""):
                 input_field("Full Name", "name", placeholder="e.g. Rahul Sharma", required=True),
                 Div(
                     input_field("Roll Number", "roll", placeholder="e.g. 26ET104011", required=True),
-                    input_field("Email Address", "email", type="email", placeholder="rahul@college.edu", required=True),
+                    input_field("Email Address", "email", type="email", placeholder="rahul@hari.edu.in", required=True),
                     cls="grid grid-cols-2 gap-3"
                 ),
                 Div(
@@ -109,7 +115,7 @@ def team_get(session, role_filter: str = "all", search: str = ""):
                     cls="grid grid-cols-2 gap-3"
                 ),
                 Div(
-                    input_field("Branch / Dept", "branch", placeholder="e.g. CSE / IT / ECE", required=False),
+                    input_field("Branch / Dept", "branch", placeholder="e.g. CSE-1 / CSM-2", required=False),
                     input_field("Year of Study", "year", type="number", value="2", required=False),
                     cls="grid grid-cols-2 gap-3"
                 ),
@@ -130,22 +136,22 @@ def team_get(session, role_filter: str = "all", search: str = ""):
     header = Div(
         Div(
             H1("Core Team Directory", cls="font-heading font-bold text-2xl"),
-            P("Active club leadership, department heads, and core members", cls="text-sm text-secondary"),
+            P("Active club leadership, department heads, and appointed committee members", cls="text-sm text-secondary"),
             cls="flex-1"
         ),
         Div(
             btn_primary(
-                icon("person_add", "text-sm"), "Add Member",
+                icon("person_add", "text-sm"), "Provision Member",
                 onclick="document.getElementById('member-modal').classList.remove('hidden')",
                 type="button"
-            ) if rank >= 4 and not session.get("view_as") else "",
+            ) if can_provision_accounts else "",
             cls="flex items-center gap-3"
         ),
         cls="flex flex-wrap items-center justify-between gap-4 mb-6"
     )
 
     stats = Div(
-        stat_card("Total Members", len(members), "badge"),
+        stat_card("Total Committee", len(members), "badge"),
         stat_card("Executive Board", sum(1 for m in members if RANKS.get(m.get("role"), 1) >= 4), "military_tech"),
         stat_card("Section Leads", sum(1 for m in members if RANKS.get(m.get("role"), 1) == 3), "supervised_user_circle"),
         cls="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
@@ -165,9 +171,11 @@ def team_new_post(session, name: str, roll: str, email: str, role: str, password
     u = current_user(session)
     if not u or session.get("view_as"):
         return go("/login")
-    if RANKS.get(u["role"], 1) < 4:
+    
+    # Account creation is strictly restricted to Club Coordinator & President
+    if u["role"] not in ("club_coordinator", "president"):
         return go("/team")
-    # Only club_coordinator can create rank 4+ accounts
+
     target_rank = RANKS.get(role, 1)
     if target_rank >= 4 and u["role"] != "club_coordinator":
         return go("/team")
@@ -189,9 +197,9 @@ def team_new_post(session, name: str, roll: str, email: str, role: str, password
     try:
         res = supabase.table("members").insert(payload).execute()
         if res.data:
-            log_activity(session, "member_created", "team", res.data[0]["id"], f"Created member: {name.strip()} ({role})")
+            log_activity(session, "member_provisioned", "team", res.data[0]["id"], f"Provisioned member: {name.strip()} ({role})")
     except Exception as e:
-        print("Member creation error:", e)
+        print("Member provision error:", e)
 
     return go("/team")
 
@@ -200,7 +208,7 @@ def team_update_role(session, mid: str, new_role: str):
     u = current_user(session)
     if not u or session.get("view_as"):
         return go("/login")
-    if RANKS.get(u["role"], 1) < 4:
+    if u["role"] not in ("club_coordinator", "president"):
         return go("/team")
 
     target_rank = RANKS.get(new_role, 1)

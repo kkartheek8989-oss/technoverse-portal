@@ -9,15 +9,15 @@ def auth_shell(*c):
     return (
         Title("Technoverse Portal | Hari University"),
         Div(
-            # Top Right: Hari University Logo & Crest
+            # Top Right: Official Hari University Logo & Seal
             Div(
-                Img(src="/hari-university-logo.svg", alt="Hari University Logo", cls="w-9 h-9 rounded-full border border-white/20 bg-[#0b1f5c] p-0.5 shadow-md shrink-0"),
+                Img(src="/hari-university-logo.png", alt="Hari University Logo", cls="w-10 h-10 object-contain shrink-0 drop-shadow-md"),
                 Div(
                     Span("Hari University", cls="font-heading font-bold text-xs text-white block leading-tight"),
-                    Span("Official Campus Portal", cls="text-[9px] text-amber font-mono font-medium block leading-tight"),
+                    Span("Official Technical Portal", cls="text-[9px] text-amber font-mono font-medium block leading-tight"),
                     cls="text-left hidden sm:block"
                 ),
-                cls="fixed top-4 right-4 z-40 flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl backdrop-blur shadow-lg"
+                cls="fixed top-4 right-4 z-40 flex items-center gap-2.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl backdrop-blur shadow-lg"
             ),
             # Main Auth Content Card
             Div(
@@ -52,10 +52,9 @@ def login_form(error="", success="", roll=""):
                 method="post",
                 action="/login"
             ),
-            Div(
-                P("Don't have an account?", cls="text-xs text-muted"),
-                A("Create an Account / Sign Up →", href="/register", cls="text-xs font-bold text-primary hover:underline ml-1"),
-                cls="flex items-center justify-center mt-6 pt-4 border-t border-white/5"
+            P(
+                "Account creation is restricted to the Club Coordinator & President.",
+                cls="text-xs text-muted text-center mt-6 pt-4 border-t border-white/5 font-mono"
             )
         )
     )
@@ -78,106 +77,13 @@ def login_post(session, roll: str, password: str):
         supabase.table("members").update({"last_login": now_iso}).eq("id", user["id"]).execute()
     except Exception as e:
         print("Warning: Failed to update last_login timestamp:", e)
-    log_activity(session, "login", "auth", None, "User logged in")
+    log_activity(session, "login", "auth", None, f"User {user.get('name')} logged in ({user.get('role')})")
     return go("/")
 
-@rt("/register", methods=["GET"])
-def register_get(session, error: str = ""):
-    if current_user(session):
-        return go("/")
-    return auth_shell(
-        card(
-            Div(error, cls="bg-red-900/40 border border-red-500/30 p-3 rounded-xl text-red-200 text-sm mb-4") if error else "",
-            H2("Create Account", cls="font-heading font-bold text-2xl mb-1"),
-            P("Join Technoverse Club at Hari University", cls="text-sm text-muted mb-6"),
-            Form(
-                input_field("Full Name", "name", placeholder="e.g. Rahul Sharma", required=True),
-                Div(
-                    input_field("Roll Number", "roll", placeholder="e.g. 26ET104088", required=True),
-                    input_field("Email Address", "email", type="email", placeholder="rahul@hari.edu.in", required=True),
-                    cls="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                ),
-                Div(
-                    select_field("Branch / Department", "branch", [
-                        ("CSE", "Computer Science (CSE)"),
-                        ("IT", "Information Tech (IT)"),
-                        ("AI & DS", "AI & Data Science"),
-                        ("Cyber Security", "Cyber Security"),
-                        ("ECE", "Electronics & Comm (ECE)"),
-                        ("General", "Other / General")
-                    ]),
-                    select_field("Year of Study", "year", [
-                        ("1", "1st Year"),
-                        ("2", "2nd Year"),
-                        ("3", "3rd Year"),
-                        ("4", "4th Year")
-                    ]),
-                    cls="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                ),
-                Div(
-                    input_field("Password (min 8 chars)", "pw", type="password", required=True),
-                    input_field("Confirm Password", "confirm_pw", type="password", required=True),
-                    cls="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                ),
-                btn_primary("Create Member Account", type="submit", cls="w-full py-2.5 font-semibold text-base mt-2"),
-                method="post",
-                action="/register"
-            ),
-            Div(
-                P("Already have an account?", cls="text-xs text-muted"),
-                A("Sign in here →", href="/login", cls="text-xs font-bold text-primary hover:underline ml-1"),
-                cls="flex items-center justify-center mt-6 pt-4 border-t border-white/5"
-            )
-        )
-    )
-
-@rt("/register", methods=["POST"])
-def register_post(name: str, roll: str, email: str, pw: str, confirm_pw: str, branch: str = "CSE", year: int = 1):
-    clean_roll = roll.strip().upper()
-    clean_email = email.strip().lower()
-
-    if len(pw) < 8:
-        return register_get(None, error="Password must be at least 8 characters long.")
-    if pw != confirm_pw:
-        return register_get(None, error="Passwords do not match. Please verify and retry.")
-
-    # Check for existing roll or email
-    try:
-        existing = supabase.table("members").select("id").or_(f"roll.eq.{clean_roll},email.eq.{clean_email}").limit(1).execute().data
-        if existing:
-            return register_get(None, error=f"An account with roll '{clean_roll}' or email already exists. Please log in.")
-    except Exception as e:
-        print("Duplicate check error:", e)
-
-    # Insert new member account
-    try:
-        res = supabase.table("members").insert({
-            "name": name.strip(),
-            "roll": clean_roll,
-            "email": clean_email,
-            "role": "member",
-            "branch": branch,
-            "year": int(year or 1),
-            "pw_hash": hash_pw(pw),
-            "active": True
-        }).execute()
-        
-        # Log to activity
-        if res.data:
-            new_uid = res.data[0]["id"]
-            supabase.table("activity").insert({
-                "member_id": new_uid,
-                "member_name": name.strip(),
-                "role": "member",
-                "action": "account_created",
-                "section": "auth",
-                "summary": f"New member account registered: {name.strip()} ({clean_roll})"
-            }).execute()
-
-        return go("/login?success=Account+created+successfully!+Please+sign+in+with+your+credentials.")
-    except Exception as e:
-        print("Registration error:", e)
-        return register_get(None, error=f"Registration failed: {str(e)[:150]}")
+# Registration is restricted to Club Coordinator and President (via Team management)
+@rt("/register", methods=["GET", "POST"])
+def register_blocked(session):
+    return go("/login?error=Direct+registration+is+restricted.+Only+the+Club+Coordinator+and+President+can+provision+new+accounts.")
 
 @rt("/logout", methods=["GET", "POST"])
 def logout(session):
