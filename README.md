@@ -1,104 +1,80 @@
-# Technoverse Portal
+# 🚀 Technoverse Portal | Hari University (Deemed to be University)
 
-A private, mobile-first management portal for the core team of Technoverse Club, built with **FastHTML**, **Supabase** (PostgreSQL), and deployed on **Vercel** / **Render** for **100% FREE**.
-
----
-
-## 🚀 1. Free Database Setup (Supabase)
-
-Supabase provides a free-tier PostgreSQL database, authentication, and file storage.
-
-1. Go to [https://supabase.com](https://supabase.com) and sign in or create a free account.
-2. Click **New Project**:
-   - Choose an organization.
-   - Enter project name (e.g., `technoverse-portal`).
-   - Set a strong database password (keep this safe).
-   - Select your nearest region and click **Create new project**.
-3. Once the project is provisioned (~1–2 minutes):
-   - In the left sidebar, click on **SQL Editor** (the `>_` terminal icon).
-   - Click **New Query**.
-   - Copy the entire contents of [`schema.sql`](file:///C:/Users/KRISHNA%20KARTHEEK/Downloads/technoverse_portal_fixed/schema.sql) and paste it into the editor.
-   - Click **Run** (or press `Ctrl + Enter`).
-   - You should see: `Success. No rows returned.` (All 17 tables, indexes, and storage bucket are now created).
-4. Get your API Keys:
-   - In the left sidebar, go to **Project Settings** (gear icon) → **API**.
-   - Copy the **Project URL** (e.g. `https://xyzcompany.supabase.co`).
-   - Under **Project API keys**, find `service_role` (secret) and click Reveal/Copy.
-     *(Note: The `service_role` key is required because it has server-side admin privileges to bypass RLS).*
+An executive, mobile-responsive management portal for the **Technoverse Club** (Official Technical Body of Hari University), built with **FastHTML**, **Supabase** (PostgreSQL & S3 Cloud Storage), and ready for **100% FREE** deployment on **Render.com** or **Hugging Face Spaces**.
 
 ---
 
-## 💻 2. Local Setup & Testing
+## 🏛️ Official Committee Credentials & Hierarchy
 
-1. In the project root, open `.env` (or copy `.env.example` to `.env`):
+| S.No | Designation | Appointed Officer | Branch | Roll Number (User ID) | Mobile Number (Password) | Provisioned Role |
+| :---: | :--- | :--- | :---: | :---: | :---: | :--- |
+| **1** | **President** | **Karthik** | CSE-1 (1st Year B.Tech) | `26ET103047` | `9032936677` | `president` |
+| **2** | **Vice President** | **D. Yakshagna** | CSM-3 (1st Year B.Tech) | `26ET104152` | `9894474159` | `vice_president` |
+| **3** | **Secretary** | **B. Sariyu** | CSD (1st Year B.Tech) | `26ET102005` | `8519802425` | `secretary` |
+| **4** | **Treasurer** | **Chaitanya** | CSM-1 (1st Year B.Tech) | `26ET104048` | `8639638181` | `treasurer` |
+| **5** | **Technical Lead** | **Harsha** | CSE-1 | `26ET1030` | `7382620603` | `technical_lead` |
+| **6** | **Technical Lead** | **Manikanta** | CSE-2 | `26ET103101` | `9948856065` | `technical_lead` |
+| **7** | **Event Coordinator** | **Swetha** | CSM-2 | `26ET104126` | `7816013446` | `event_coordinator` |
+| **8** | **Event Coordinator** | **B. Thanusree** | CSC | `26ET101037` | `9281289762` | `event_coordinator` |
+| **9** | **Event Coordinator** | **Sahasra** | CSE-2 | `26ET103065` | `9505499928` | `event_coordinator` |
+| **10**| **Club Coordinator** | **Chandini.B** | CSE (Faculty Advisor) | `COORD01` | `coordinator123` | `club_coordinator` |
+
+---
+
+## ⚡ Key Enterprise Features
+
+1. **👑 Presidential Governance Desk (`/president`):** Exclusive executive command suite with Presidential Directive Dispatcher, major budget sanctions, and committee member provisioning.
+2. **⚔️ VP Operations Command (`/vice-president`):** Direct operational task allocation, live inter-wing Kanban task injection, and Hari University campus venue clearances.
+3. **🛠️ Secret Admin Control CMS (`/admin-control`):** Complete autonomous content manager for President and Club Coordinator to update all sections (Hero, 4 Pillars, Urgent Alert Banner, Club Schedule, Maintenance Mode) without touching code.
+4. **☁️ Supabase Cloud File Storage (`/files`):** Direct cloud file uploads (PDFs, images, ZIPs, decks) into Supabase S3 storage bucket `club-files`.
+5. **⏰ 24/7 Supabase Keep-Alive (`.github/workflows/supabase_keepalive.yml`):** Automated scheduled cron that runs every 3 days to prevent Supabase inactivity pausing.
+
+---
+
+## 💻 Local Quickstart
+
+1. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Verify Configuration:**
+   Ensure `.env` contains:
    ```env
    SECRET_KEY=e7e2cd2ac66414f8dc826931c5dcaee066d2b1c647657655ea02889b2ad25c76
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_SERVICE_KEY=your-actual-service-role-key
+   SUPABASE_URL=https://yqhiigzwlumnidqqtfpw.supabase.co
+   SUPABASE_SERVICE_KEY=your_service_role_key
    ```
-2. Run the pre-flight verification script:
-   ```bash
-   python test_connection.py
-   ```
-   This will verify that your credentials work and that all 17 tables exist in Supabase.
-3. Start the local server:
+3. **Run Dev Server:**
    ```bash
    python app.py
    ```
-4. Open your browser at [http://localhost:5001](http://localhost:5001).
-   - On the first visit, go to [http://localhost:5001/setup](http://localhost:5001/setup) to create the first **Club Coordinator** account.
-   - After creating the account, log in using your Roll Number and Password!
+   Open `http://localhost:5001` in your browser.
 
 ---
 
-## 🌐 3. Make It Live on the Internet for FREE (Vercel)
+## 🌐 Free Cloud Deployment (Without Vercel)
 
-### Option A: Via GitHub & Vercel Dashboard (Easiest & Recommended)
-
-1. Create a repository on GitHub (can be private or public).
-2. Push your project to GitHub:
+### Option A: Render.com (100% Free Forever)
+1. Push this repository to your GitHub account:
    ```bash
-   git add .
-   git commit -m "Initial commit of Technoverse Portal"
-   git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/technoverse-portal.git
-   git branch -M main
+   git remote set-url origin https://github.com/<YOUR_USERNAME>/technoverse-portal.git
    git push -u origin main
    ```
-3. Go to [https://vercel.com](https://vercel.com) and log in with GitHub.
-4. Click **Add New...** → **Project**.
-5. Import your `technoverse-portal` repository.
-6. Under **Environment Variables**, add the 3 variables:
-   - `SECRET_KEY`: (Your 64-char key from `.env`)
-   - `SUPABASE_URL`: (Your Supabase project URL)
-   - `SUPABASE_SERVICE_KEY`: (Your Supabase service_role secret key)
-7. Click **Deploy**.
-8. Within 60 seconds, your site is LIVE on the internet with a free `.vercel.app` domain and free HTTPS/SSL!
+2. Go to [render.com](https://render.com) → Click **New +** → **Web Service** → Select `technoverse-portal`.
+3. Render automatically detects [`render.yaml`](render.yaml). Add environment variables:
+   - `SUPABASE_URL`: `https://yqhiigzwlumnidqqtfpw.supabase.co`
+   - `SUPABASE_SERVICE_KEY`: `your_service_role_key`
+4. Click **Deploy Web Service** → Live at `https://technoverse-portal.onrender.com`!
+
+### Option B: Hugging Face Spaces (Free 24/7 Docker Web App)
+1. Open [huggingface.co/new-space](https://huggingface.co/new-space).
+2. Choose **Docker** or **Blank**, name it `technoverse-portal`.
+3. Drag and drop project files in the browser and commit to main.
+4. Add environment variables under Settings → Secrets.
 
 ---
 
-## 🔄 4. Keep-Alive Automation (Prevent Supabase Inactivity Pausing)
-
-Supabase free-tier projects pause if there are no requests for 7 days.
-This repository includes an automated GitHub Action workflow:
-`.github/workflows/keepalive.yml`
-
-To activate it:
-1. In your GitHub repository, go to **Settings** → **Secrets and variables** → **Actions**.
-2. Click **New repository secret**.
-3. Name: `SITE_URL`
-4. Value: Your deployed live URL (e.g. `https://technoverse-portal.vercel.app`).
-5. GitHub Actions will automatically ping `https://<YOUR_APP>/health` every 3 days, ensuring your database stays awake 24/7!
-
----
-
-## 🛡️ Roles & Permissions Reference
-
-| Role | Rank | Access Permissions |
-|------|------|--------------------|
-| `member` | 1 | Own tasks, register for events, upload files, view team |
-| `secretary` | 3 | Meeting minutes owner + section actions |
-| `treasurer` | 3 | Club finance owner + section actions |
-| `technical_lead` | 3 | Learning hub owner + coding events |
-| `event_coordinator` | 3 | Events & registrations owner |
-| `vice_president` / `president` | 4 | All section actions + View-As preview persona |
-| `club_coordinator` | 5 | Superadmin: all actions, user management, roles & setup |
+## 🛡️ Security & Registration Constraints
+- **Public Registration Blocked:** Direct signup (`/register`) is permanently disabled with a security notice.
+- **Provisioning Authority:** Only **Chandini.B** (`COORD01`) and **Karthik** (`26ET103047`) can provision new accounts from `/team`.
+- **Passcode Hashing:** All credentials protected with salted `bcrypt`.
