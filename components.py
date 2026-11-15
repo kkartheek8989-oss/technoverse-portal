@@ -8,52 +8,52 @@ def _cls(base, kw):
     return f"{base} {kw.pop('cls', '')}".strip()
 
 def btn(*c, **kw):
-    base = "inline-flex items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer disabled:opacity-50"
+    base = "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all duration-200 ease-out cursor-pointer disabled:opacity-50 active:scale-95"
     return Button(*c, cls=_cls(base, kw), **kw)
 
 def btn_primary(*c, **kw):
-    return btn(*c, cls=_cls("bg-primary text-white hover:opacity-90 border-transparent px-4 py-2", kw), **kw)
+    return btn(*c, cls=_cls("bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-600/25 hover:shadow-blue-600/35 border border-blue-400/20 px-4 py-2", kw), **kw)
 
 def btn_ghost(*c, **kw):
-    return btn(*c, cls=_cls("border-white/10 text-secondary hover:bg-white/5 px-4 py-2", kw), **kw)
+    return btn(*c, cls=_cls("border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/20 text-slate-300 hover:text-white px-4 py-2", kw), **kw)
 
 def btn_danger(*c, **kw):
-    return btn(*c, cls=_cls("bg-red-600 text-white hover:bg-red-700 border-transparent px-4 py-2", kw), **kw)
+    return btn(*c, cls=_cls("bg-red-600/90 hover:bg-red-600 text-white shadow-lg shadow-red-600/20 border border-red-500/20 px-4 py-2", kw), **kw)
 
 def btn_success(*c, **kw):
-    return btn(*c, cls=_cls("bg-emerald-600 text-white hover:bg-emerald-700 border-transparent px-4 py-2", kw), **kw)
+    return btn(*c, cls=_cls("bg-emerald-600/90 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 border border-emerald-500/20 px-4 py-2", kw), **kw)
 
 BADGES = {
-    "primary": "bg-primary text-white",
-    "secondary": "bg-white/5 text-secondary border border-white/10",
-    "amber": "bg-amber text-dark font-semibold",
-    "done": "bg-emerald-600 text-white",
-    "doing": "bg-blue-600 text-white",
-    "todo": "bg-slate-700 text-white",
-    "urgent": "bg-red-500 text-white",
-    "high": "bg-orange-500 text-white",
-    "medium": "bg-yellow-500 text-dark",
-    "low": "bg-green-600 text-white",
-    "approved": "bg-emerald-600 text-white",
-    "pending": "bg-amber text-dark",
-    "rejected": "bg-red-600 text-white",
-    "registered": "bg-primary text-white",
-    "waitlist": "bg-yellow-600 text-white"
+    "primary": "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+    "secondary": "bg-white/5 text-slate-400 border border-white/10",
+    "amber": "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold",
+    "done": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+    "doing": "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+    "todo": "bg-slate-500/15 text-slate-300 border border-slate-500/30",
+    "urgent": "bg-red-500/15 text-red-400 border border-red-500/30 font-semibold",
+    "high": "bg-orange-500/15 text-orange-400 border border-orange-500/30",
+    "medium": "bg-amber-500/15 text-amber-400 border border-amber-500/30",
+    "low": "bg-slate-500/15 text-slate-400 border border-slate-500/30",
+    "approved": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold",
+    "pending": "bg-amber-500/15 text-amber-400 border border-amber-500/30",
+    "rejected": "bg-red-500/15 text-red-400 border border-red-500/30",
+    "registered": "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+    "waitlist": "bg-amber-500/15 text-amber-400 border border-amber-500/30"
 }
 
 def badge(text, variant="secondary"):
-    return Span(str(text), cls=f"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono {BADGES.get(variant, BADGES['secondary'])}")
+    return Span(str(text), cls=f"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono {BADGES.get(variant, BADGES['secondary'])}")
 
 def input_field(label, name, type="text", placeholder="", value="", required=True):
     return Div(
-        Label(label, cls="block text-xs font-mono text-muted mb-1"),
+        Label(label, cls="block text-xs font-mono text-slate-400 mb-1.5"),
         Input(name=name, type=type, placeholder=placeholder, value=str(value or ""), required=required, cls="input w-full"),
         cls="mb-4"
     )
 
 def textarea_field(label, name, placeholder="", value="", rows=3, required=False):
     return Div(
-        Label(label, cls="block text-xs font-mono text-muted mb-1"),
+        Label(label, cls="block text-xs font-mono text-slate-400 mb-1.5"),
         Textarea(str(value or ""), name=name, placeholder=placeholder, rows=rows, required=required, cls="input w-full resize-y"),
         cls="mb-4"
     )
@@ -68,29 +68,29 @@ def select_field(label, name, options, selected=None, required=True):
         is_sel = str(val) == str(selected)
         opts.append(Option(lab, value=str(val), selected=is_sel))
     return Div(
-        Label(label, cls="block text-xs font-mono text-muted mb-1"),
-        Select(*opts, name=name, required=required, cls="input w-full"),
+        Label(label, cls="block text-xs font-mono text-slate-400 mb-1.5"),
+        Select(*opts, name=name, required=required, cls="input w-full bg-[#0b1120]"),
         cls="mb-4"
     )
 
-def card(*c, cls="", p="p-5"):
-    return Div(*c, cls=f"card rounded-2xl {p} {cls}")
+def card(*c, cls="", p="p-6"):
+    return Div(*c, cls=f"card {p} {cls}")
 
 def stat_card(label, value, ic="analytics", subtext=""):
     return card(
         Div(
-            Div(label, cls="text-xs text-muted font-mono"),
-            icon(ic, "text-muted text-lg") if ic else "",
+            Div(label, cls="text-xs text-slate-400 font-mono tracking-wider uppercase font-semibold"),
+            Div(icon(ic, "text-blue-400 text-lg"), cls="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center") if ic else "",
             cls="flex items-center justify-between"
         ),
-        Div(str(value), cls="text-2xl font-mono font-bold mt-1"),
-        Div(subtext, cls="text-[11px] text-muted mt-1") if subtext else ""
+        Div(str(value), cls="text-2xl sm:text-3xl font-mono font-bold text-white mt-3"),
+        Div(subtext, cls="text-[11px] text-slate-400 mt-1 font-mono") if subtext else ""
     )
 
 def avatar(name="?", cls="w-8 h-8"):
     words = (name or "?").strip().split()
     ini = ("".join(w[0] for w in words[:2]) if words else "?").upper()
-    return Div(ini, cls=f"{cls} rounded-full bg-primary/20 text-primary font-mono text-xs flex items-center justify-center font-bold shrink-0")
+    return Div(ini, cls=f"{cls} rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-mono text-xs flex items-center justify-center font-bold shrink-0 shadow-sm border border-white/20")
 
 def format_inr(amount):
     try:
@@ -115,10 +115,10 @@ def hari_university_badge(cls=""):
         Img(src="/hari-university-logo.png", alt="Hari University Official Seal", cls="w-8 h-8 object-contain shrink-0 drop-shadow"),
         Div(
             Span("Hari University", cls="font-heading font-bold text-xs leading-none text-white block"),
-            Span("Affiliated Campus", cls="text-[9px] text-amber font-mono font-medium leading-none block mt-0.5"),
+            Span("Affiliated Campus", cls="text-[9px] text-amber-400 font-mono font-medium leading-none block mt-0.5"),
             cls="hidden sm:block text-left"
         ),
-        cls=f"flex items-center gap-2.5 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl transition-colors {cls}"
+        cls=f"flex items-center gap-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 px-3 py-1.5 rounded-xl transition-all {cls}"
     )
 
 def footer():
@@ -126,14 +126,14 @@ def footer():
         Div(
             Div(
                 Span("Built by Technoverse.", cls="font-bold text-white"),
-                Span(" All rights reserved.", cls="text-muted ml-1"),
+                Span(" All rights reserved.", cls="text-slate-400 ml-1"),
                 cls="text-xs font-mono"
             ),
             Div(
-                Span("Technoverse Club • Official Technical Body of Hari University", cls="text-[11px] text-muted font-mono"),
+                Span("Technoverse Club • Official Technical Body of Hari University", cls="text-[11px] text-slate-400 font-mono"),
                 cls="text-center sm:text-right"
             ),
-            cls="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-8 border-t border-white/5 mt-16 text-center sm:text-left"
+            cls="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-8 border-t border-white/[0.07] mt-16 text-center sm:text-left"
         )
     )
 
@@ -151,12 +151,12 @@ NAV = [
     ("Portal Settings", "/settings", "settings", 1)
 ]
 
-def _link(label, url, ic, cls="px-3 py-2 text-sm text-secondary hover:bg-white/5 rounded-lg"):
-    return A(icon(ic, "text-muted"), Span(label), href=url, cls=f"flex items-center gap-3 {cls}")
+def _link(label, url, ic, cls="px-3.5 py-2.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-150"):
+    return A(icon(ic, "text-slate-400 group-hover:text-blue-400 text-lg"), Span(label), href=url, cls=f"group flex items-center gap-3 {cls}")
 
 def toast(text, variant="info"):
-    col = {"info": "bg-primary", "success": "bg-emerald-600", "error": "bg-red-600"}.get(variant, "bg-primary")
-    return Div(text, cls=f"{col} text-white px-4 py-3 rounded-lg shadow-lg text-sm fixed top-4 right-4 z-50 transition-all", onclick="this.remove()")
+    col = {"info": "bg-blue-600", "success": "bg-emerald-600", "error": "bg-red-600"}.get(variant, "bg-blue-600")
+    return Div(text, cls=f"{col} text-white px-4 py-3 rounded-xl shadow-2xl text-sm fixed top-4 right-4 z-50 transition-all font-medium", onclick="this.remove()")
 
 def page(session, user, title, *content):
     real = user["role"]
@@ -166,55 +166,55 @@ def page(session, user, title, *content):
 
     banner = Div(
         Span(f"Viewing as: {role.replace('_', ' ').title()} (read-only preview)"),
-        Form(btn("Exit Preview", cls="bg-dark text-amber border-amber px-2 py-1 text-xs"), method="post", action="/view-as/reset"),
-        cls="bg-amber text-dark px-4 py-2 flex items-center justify-between text-xs font-mono sticky top-0 z-30"
+        Form(btn("Exit Preview", cls="bg-dark text-amber border-amber px-2.5 py-1 text-xs"), method="post", action="/view-as/reset"),
+        cls="bg-amber-500/90 text-slate-950 px-4 py-2 flex items-center justify-between text-xs font-mono font-bold sticky top-0 z-30 shadow-md"
     ) if session.get("view_as") else ""
 
     top = Div(
         Div(
             Div(
-                Img(src="/logo-mark.png", cls="w-9 h-9 rounded-lg bg-white p-1", alt="Technoverse Club logo"),
-                Span("Technoverse", cls="font-heading font-bold text-lg hidden sm:inline"),
-                cls="flex items-center gap-2"
+                Img(src="/logo-mark.png", cls="w-9 h-9 rounded-xl bg-white p-1 shadow-md", alt="Technoverse Club logo"),
+                Span("Technoverse", cls="font-heading font-bold text-lg hidden sm:inline text-white"),
+                cls="flex items-center gap-2.5"
             ),
             Div(
                 hari_university_badge(),
                 badge(f"{real.replace('_', ' ').upper()} R{RANKS.get(real, 1)}", "amber" if real == "club_coordinator" else "primary"),
                 avatar(user["name"]),
-                A(icon("logout"), href="/logout", cls="text-muted hover:text-white transition-colors", title="Sign out"),
+                A(icon("logout"), href="/logout", cls="text-slate-400 hover:text-white transition-colors p-1", title="Sign out"),
                 cls="flex items-center gap-3"
             ),
-            cls="flex items-center justify-between px-4 py-3"
+            cls="flex items-center justify-between px-6 py-3.5"
         ),
-        cls="sticky top-0 z-20 border-b border-white/5 bg-dark/90 backdrop-blur"
+        cls="sticky top-0 z-20 border-b border-white/[0.06] bg-[#080c14]/80 backdrop-blur-xl"
     )
 
     side = Aside(
         *[_link(l, u, i) for l, u, i, _ in items],
-        cls="hidden md:block w-64 shrink-0 border-r border-white/5 p-4 space-y-1 min-h-[calc(100vh-61px)]"
+        cls="hidden md:block w-64 shrink-0 border-r border-white/[0.06] p-4 space-y-1.5 min-h-[calc(100vh-65px)] bg-[#080c14]/30"
     )
 
     more = Div(
-        Div(onclick="document.getElementById('more-sheet').classList.add('hidden')", cls="absolute inset-0 bg-black/60 backdrop-blur-sm"),
+        Div(onclick="document.getElementById('more-sheet').classList.add('hidden')", cls="absolute inset-0 bg-black/70 backdrop-blur-sm"),
         Div(
-            H3("More Sections", cls="font-heading font-bold mb-3 text-lg"),
+            H3("Enterprise Navigation", cls="font-heading font-bold mb-4 text-lg text-white"),
             *[_link(l, u, i) for l, u, i, _ in items[4:]],
-            cls="absolute bottom-0 inset-x-0 card rounded-t-3xl p-5 pb-8 space-y-2 border-t border-white/10"
+            cls="absolute bottom-0 inset-x-0 card rounded-t-3xl p-6 pb-10 space-y-2 border-t border-white/10 shadow-2xl"
         ),
         id="more-sheet",
         cls="fixed inset-0 z-50 hidden md:hidden"
     )
 
     bottom = Nav(
-        *[A(icon(i), Span(l.split()[0], cls="text-[10px] font-mono"), href=u, cls="flex flex-col items-center px-3 py-1 text-secondary hover:text-white")
+        *[A(icon(i), Span(l.split()[0], cls="text-[10px] font-mono"), href=u, cls="flex flex-col items-center px-3 py-1 text-slate-400 hover:text-white transition-colors")
           for l, u, i, _ in items[:4]],
         Button(
             icon("more_horiz"), Span("More", cls="text-[10px] font-mono"),
             onclick="document.getElementById('more-sheet').classList.remove('hidden')",
             type="button",
-            cls="flex flex-col items-center px-3 py-1 text-secondary hover:text-white border-0 bg-transparent cursor-pointer"
+            cls="flex flex-col items-center px-3 py-1 text-slate-400 hover:text-white border-0 bg-transparent cursor-pointer"
         ),
-        cls="md:hidden fixed bottom-0 inset-x-0 z-40 flex justify-around border-t border-white/10 bg-dark/95 backdrop-blur py-2"
+        cls="md:hidden fixed bottom-0 inset-x-0 z-40 flex justify-around border-t border-white/[0.08] bg-[#080c14]/90 backdrop-blur-xl py-2 shadow-2xl"
     )
 
     return (
