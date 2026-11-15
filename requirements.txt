@@ -1,0 +1,4 @@
+python-fasthtml>=0.12
+supabase>=2.20
+bcrypt>=4.1
+python-dotenv>=1.0
