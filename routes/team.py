@@ -31,11 +31,11 @@ def edit_modal_for(m, u, roles_list):
     is_self = (m["id"] == u["id"])
     m_role = m.get("role", "member")
     
-    # Filter roles: Coordinators can assign anything; Presidents can assign rank < 4
-    if u["role"] == "club_coordinator":
-        avail_roles = roles_list
-    else:
-        avail_roles = [(val, lab) for val, lab in roles_list if RANKS.get(val, 1) < 4]
+    # Both Club Coordinator and President have full administrative access to all roles
+    avail_roles = roles_list
+
+    # Delete permission: Both Coordinator and President can delete members (cannot delete COORD01 or self)
+    can_delete = (u["role"] in ("club_coordinator", "president")) and not is_self and (m.get("roll") != "COORD01")
 
     return Div(
         Div(onclick=f"document.getElementById('edit-modal-{mid}').classList.add('hidden')", cls="absolute inset-0 bg-black/75 backdrop-blur-sm"),
@@ -99,7 +99,7 @@ def edit_modal_for(m, u, roles_list):
                 method="post",
                 action=f"/team/{mid}/edit"
             ),
-            # Delete Action (Coordinator exclusive, cannot delete self)
+            # Delete Action (Coordinator and President access, cannot delete self or COORD01)
             Div(
                 Form(
                     btn_danger(icon("delete", "text-xs mr-1"), "Delete Member Account", type="submit", cls="text-xs py-1.5 px-3"),
@@ -107,9 +107,9 @@ def edit_modal_for(m, u, roles_list):
                     action=f"/team/{mid}/delete",
                     onsubmit="return confirm('Are you sure you want to permanently delete this member account? This action cannot be undone.');",
                     cls="inline-block"
-                ) if u["role"] == "club_coordinator" and not is_self else "",
+                ) if can_delete else "",
                 cls="mt-3 flex justify-start"
-            ) if u["role"] == "club_coordinator" and not is_self else "",
+            ) if can_delete else "",
             cls="relative z-10 w-full max-w-xl mx-auto mt-6 max-h-[90vh] overflow-y-auto border border-blue-500/30 bg-[#0f172a] shadow-2xl"
         ),
         id=f"edit-modal-{mid}",
@@ -148,7 +148,7 @@ def team_get(session, role_filter: str = "all", search: str = "", msg: str = "",
     def member_card(m):
         m_role = m.get("role", "member")
         m_rank = RANKS.get(m_role, 1)
-        can_manage_member = (u["role"] == "club_coordinator") or (u["role"] == "president" and m_rank < 4)
+        can_manage_member = u["role"] in ("club_coordinator", "president")
         is_self = (m["id"] == u["id"])
 
         role_badge = badge(f"{m_role.replace('_', ' ').upper()} (R{m_rank})", ROLE_COLORS.get(m_role, "secondary"))
@@ -190,8 +190,8 @@ def team_get(session, role_filter: str = "all", search: str = "", msg: str = "",
             cls="hover:border-white/20 transition-all flex flex-col justify-between"
         )
 
-    # Provision modal for Coordinator and President
-    avail_provision_roles = ROLES_LIST if u["role"] == "club_coordinator" else [(val, lab) for val, lab in ROLES_LIST if RANKS.get(val, 1) < 4]
+    # Provision modal for Coordinator and President (full role access)
+    avail_provision_roles = ROLES_LIST
 
     modal = Div(
         Div(onclick="document.getElementById('member-modal').classList.add('hidden')", cls="absolute inset-0 bg-black/60 backdrop-blur-sm"),
@@ -248,11 +248,11 @@ def team_get(session, role_filter: str = "all", search: str = "", msg: str = "",
         cls="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"
     )
 
-    # Edit modals for all editable members
+    # Edit modals for all editable members (Coordinator and President access)
     edit_modals = [
         edit_modal_for(m, u, ROLES_LIST)
         for m in members
-        if ((u["role"] == "club_coordinator") or (u["role"] == "president" and RANKS.get(m.get("role"), 1) < 4))
+        if u["role"] in ("club_coordinator", "president")
     ]
 
     header = Div(
@@ -309,10 +309,6 @@ def team_new_post(session, name: str, roll: str, email: str, role: str, password
     if u["role"] not in ("club_coordinator", "president"):
         return go("/team")
 
-    target_rank = RANKS.get(role, 1)
-    if target_rank >= 4 and u["role"] != "club_coordinator":
-        return go("/team?error=Presidents+cannot+provision+accounts+at+or+above+executive+level.")
-
     clean_name = name.strip()
     clean_roll = roll.strip().upper()
     clean_email = email.strip().lower()
@@ -357,10 +353,6 @@ def team_edit_post(session, mid: str, name: str, roll: str, email: str, role: st
     if u["role"] not in ("club_coordinator", "president"):
         return go("/team")
 
-    target_rank = RANKS.get(role, 1)
-    if u["role"] == "president" and target_rank >= 4:
-        return go("/team?error=Presidents+can+only+modify+ranks+below+executive+level.")
-
     clean_name = name.strip()
     clean_roll = roll.strip().upper()
     clean_email = email.strip().lower()
@@ -403,10 +395,6 @@ def team_update_role(session, mid: str, new_role: str):
     if u["role"] not in ("club_coordinator", "president"):
         return go("/team")
 
-    target_rank = RANKS.get(new_role, 1)
-    if target_rank >= 4 and u["role"] != "club_coordinator":
-        return go("/team")
-
     try:
         supabase.table("members").update({"role": new_role}).eq("id", mid).execute()
         invalidate_cache("team_")
@@ -421,17 +409,26 @@ def team_update_role(session, mid: str, new_role: str):
 @rt("/team/{mid}/delete", methods=["POST"])
 def team_delete_post(session, mid: str):
     u = current_user(session)
-    if not u or session.get("view_as") or u["role"] != "club_coordinator":
+    if not u or session.get("view_as") or u["role"] not in ("club_coordinator", "president"):
         return go("/team")
     if str(u["id"]) == str(mid):
-        return go("/team?error=Cannot+delete+your+own+coordinator+account.")
+        return go("/team?error=Cannot+delete+your+own+account.")
+
+    # Check if target is root COORD01
+    try:
+        target = supabase.table("members").select("roll, name").eq("id", mid).single().execute().data
+        if target and target.get("roll") == "COORD01":
+            return go("/team?error=The+Club+Coordinator+root+account+cannot+be+deleted.")
+    except Exception:
+        pass
 
     try:
         supabase.table("members").delete().eq("id", mid).execute()
         invalidate_cache("team_")
         invalidate_cache("user_")
         invalidate_cache("members_")
-        log_activity(session, "member_deleted", "team", mid, f"Coordinator permanently deleted member #{mid}")
+        actor_title = "President" if u["role"] == "president" else "Coordinator"
+        log_activity(session, "member_deleted", "team", mid, f"{actor_title} {u['name']} permanently deleted member #{mid}")
         return go("/team?msg=Member+account+permanently+deleted.")
     except Exception as e:
         print("Member delete error:", e)
