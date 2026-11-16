@@ -106,7 +106,7 @@ def president_dashboard(session, msg: str = "", error: str = ""):
                             ("SECRETARIAT", "Secretariat & Records (Secretary: B. Sariyu)")
                         ]),
                         textarea_field("Executive Directive Text & Actionables", "body", placeholder="Provide detailed executive instructions, deadlines, and deliverables..."),
-                        btn_primary(icon("send", "text-sm mr-1"), "Broadcast Presidential Directive", type="submit", cls="w-full py-2.5 font-semibold text-sm"),
+                        btn_primary(icon("send", "text-sm mr-1"), "Broadcast Presidential Directive", type="submit", cls="w-full py-2.5 font-semibold text-sm", loading_text="Broadcasting Directive..."),
                         method="post",
                         action="/president/directive"
                     ),
@@ -172,7 +172,7 @@ def president_dashboard(session, msg: str = "", error: str = ""):
                                 Div(
                                     Form(
                                         Input(type="hidden", name="expense_id", value=str(e.get("id"))),
-                                        btn_success(icon("check", "text-xs mr-1"), "Grant Presidential Sanction", type="submit", cls="text-xs py-1.5 px-3 w-full"),
+                                        btn_success(icon("check", "text-xs mr-1"), "Grant Presidential Sanction", type="submit", cls="text-xs py-1.5 px-3 w-full", loading_text="Sanctioning..."),
                                         method="post",
                                         action="/president/sanction"
                                     ) if e.get("status") != "approved" else Span("✓ Sanctioned & Approved", cls="text-xs text-emerald-400 font-mono font-semibold"),

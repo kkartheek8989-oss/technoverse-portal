@@ -105,7 +105,7 @@ def learning_get(session, track: str = "all", level: str = "all"):
                 textarea_field("Overview & Syllabus", "summary", placeholder="Brief description of skills covered and prerequisites...", rows=3),
                 Div(
                     btn_ghost("Cancel", type="button", onclick="document.getElementById('resource-modal').classList.add('hidden')"),
-                    btn_primary("Publish to Hub", type="submit"),
+                    btn_primary("Publish to Hub", type="submit", loading_text="Publishing..."),
                     cls="flex justify-end gap-3 mt-6"
                 ),
                 method="post",

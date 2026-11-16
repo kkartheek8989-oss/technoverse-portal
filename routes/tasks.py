@@ -158,7 +158,7 @@ def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str =
                 ),
                 Div(
                     btn_ghost("Cancel", type="button", onclick="document.getElementById('task-modal').classList.add('hidden')"),
-                    btn_primary("Create Task", type="submit"),
+                    btn_primary("Create Task", type="submit", loading_text="Creating Task..."),
                     cls="flex justify-end gap-3 mt-6"
                 ),
                 method="post",
@@ -201,7 +201,7 @@ def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str =
                     input_field("Due Date", "due_at", type="date", value=t_due, required=False),
                     Div(
                         A(btn_ghost("Cancel", type="button"), href="/tasks"),
-                        btn_primary("Save Changes", type="submit"),
+                        btn_primary("Save Changes", type="submit", loading_text="Saving Changes..."),
                         cls="flex justify-end gap-3 mt-6"
                     ),
                     method="post",

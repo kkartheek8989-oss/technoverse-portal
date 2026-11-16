@@ -165,7 +165,7 @@ def admin_control_get(session, msg: str = "", error: str = ""):
                 Span("Changes take effect immediately across all devices without restarting the server.", cls="text-xs text-slate-400"),
                 cls="flex-1"
             ),
-            btn_primary(icon("save", "text-sm mr-1.5"), "Publish All Updates Live", type="submit", cls="py-3 px-6 text-sm font-bold shadow-xl"),
+            btn_primary(icon("save", "text-sm mr-1.5"), "Publish All Updates Live", type="submit", cls="py-3 px-6 text-sm font-bold shadow-xl", loading_text="Publishing Live Changes..."),
             cls="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
         ),
         cls="sticky bottom-4 z-30 border border-blue-500/30 bg-[#0f172a]/95 backdrop-blur shadow-2xl"

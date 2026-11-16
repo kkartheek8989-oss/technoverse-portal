@@ -8,9 +8,21 @@ def icon(n, cls=""):
 def _cls(base, kw):
     return f"{base} {kw.pop('cls', '')}".strip()
 
+def loading_spinner(cls="w-4 h-4", border="border-white/25", border_top="border-t-white"):
+    return Span(cls=f"spinner-ring {cls} {border} {border_top}")
+
 def btn(*c, **kw):
-    base = "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all duration-200 ease-out cursor-pointer disabled:opacity-50 active:scale-95"
-    return Button(*c, cls=_cls(base, kw), **kw)
+    loading_text = kw.pop("loading_text", None)
+    if loading_text:
+        kw["data-loading"] = loading_text
+    base = "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:pointer-events-none active:scale-[0.985]"
+    wrapped_c = []
+    for item in c:
+        if isinstance(item, str) and item.strip():
+            wrapped_c.append(Span(item, cls="btn-label"))
+        else:
+            wrapped_c.append(item)
+    return Button(*wrapped_c, cls=_cls(base, kw), **kw)
 
 def btn_primary(*c, **kw):
     return btn(*c, cls=_cls("bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-600/25 hover:shadow-blue-600/35 border border-blue-400/20 px-4 py-2", kw), **kw)

@@ -148,7 +148,7 @@ def finance_get(session, tab: str = "expenses"):
                 input_field("Amount (in ₹ INR)", "amount", type="number", placeholder="e.g. 3500", required=True),
                 Div(
                     btn_ghost("Cancel", type="button", onclick="document.getElementById('expense-modal').classList.add('hidden')"),
-                    btn_primary("Submit for Authorization", type="submit"),
+                    btn_primary("Submit for Authorization", type="submit", loading_text="Submitting Expense..."),
                     cls="flex justify-end gap-3 mt-6"
                 ),
                 method="post", action="/finance/expenses/new"
@@ -173,7 +173,7 @@ def finance_get(session, tab: str = "expenses"):
                 select_field("Payment Status", "status", [("received", "Received / Disbursed"), ("pledged", "Pledged (Pending Transfer)")]),
                 Div(
                     btn_ghost("Cancel", type="button", onclick="document.getElementById('sponsor-modal').classList.add('hidden')"),
-                    btn_primary("Save Record", type="submit"),
+                    btn_primary("Save Record", type="submit", loading_text="Saving Record..."),
                     cls="flex justify-end gap-3 mt-6"
                 ),
                 method="post", action="/finance/sponsorships/new"

@@ -58,7 +58,7 @@ def settings_get(session, tab: str = "profile", success: str = "", error: str = 
                 input_field("New Password (Min 8 characters)", "new_pw", type="password", required=True),
                 input_field("Confirm New Password", "confirm_pw", type="password", required=True),
                 Div(
-                    btn_primary("Update Password", type="submit"),
+                    btn_primary("Update Password", type="submit", loading_text="Updating Password..."),
                     cls="flex justify-end mt-4"
                 ),
                 method="post",
@@ -86,7 +86,7 @@ def settings_get(session, tab: str = "profile", success: str = "", error: str = 
                 input_field("Active Fiscal Term", "fiscal_term", value=fiscal_term, required=True),
                 input_field("Expense Approval Threshold (₹ INR)", "expense_threshold", type="number", value=threshold, required=True),
                 Div(
-                    btn_primary("Save Parameters", type="submit"),
+                    btn_primary("Save Parameters", type="submit", loading_text="Saving Parameters..."),
                     cls="flex justify-end mt-4"
                 ),
                 method="post",

@@ -103,7 +103,7 @@ def minutes_get(session):
                 textarea_field("Action Items (One per line)", "action_items", placeholder="e.g.\nDraft Hackathon Rulebook\nContact Audio Vendor for Audi-2\nConfirm Guest Speaker Schedule", rows=3),
                 Div(
                     btn_ghost("Cancel", type="button", onclick="document.getElementById('minutes-modal').classList.add('hidden')"),
-                    btn_primary("Save Minutes", type="submit"),
+                    btn_primary("Save Minutes", type="submit", loading_text="Saving Minutes..."),
                     cls="flex justify-end gap-3 mt-6"
                 ),
                 method="post",

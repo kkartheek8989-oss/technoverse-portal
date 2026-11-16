@@ -163,7 +163,7 @@ def events_get(session, flagship: str = "all", category: str = "all", edit_id: i
                 textarea_field("Description", "description", placeholder="Event agenda, requirements, and benefits...", rows=3),
                 Div(
                     btn_ghost("Cancel", type="button", onclick="document.getElementById('event-modal').classList.add('hidden')"),
-                    btn_primary("Create Event", type="submit"),
+                    btn_primary("Create Event", type="submit", loading_text="Creating Event..."),
                     cls="flex justify-end gap-3 mt-6"
                 ),
                 method="post",
@@ -208,7 +208,7 @@ def events_get(session, flagship: str = "all", category: str = "all", edit_id: i
                     textarea_field("Description", "description", value=event_to_edit.get("description", "") or "", rows=3),
                     Div(
                         A(btn_ghost("Cancel", type="button"), href="/events"),
-                        btn_primary("Save Changes", type="submit"),
+                        btn_primary("Save Changes", type="submit", loading_text="Saving Changes..."),
                         cls="flex justify-end gap-3 mt-6"
                     ),
                     method="post",

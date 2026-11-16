@@ -121,7 +121,7 @@ def team_get(session, role_filter: str = "all", search: str = ""):
                 ),
                 Div(
                     btn_ghost("Cancel", type="button", onclick="document.getElementById('member-modal').classList.add('hidden')"),
-                    btn_primary("Create Member Account", type="submit"),
+                    btn_primary("Create Member Account", type="submit", loading_text="Provisioning Account..."),
                     cls="flex justify-end gap-3 mt-6"
                 ),
                 method="post",

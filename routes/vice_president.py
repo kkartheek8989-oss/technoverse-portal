@@ -111,7 +111,7 @@ def vice_president_dashboard(session, msg: str = "", error: str = ""):
                             ("medium", "MEDIUM (Normal Operational Schedule)")
                         ]),
                         textarea_field("Operational Instructions & Deliverables", "description", placeholder="Specify clear execution steps, required equipment, coordination points, and deliverables..."),
-                        btn_primary(icon("rocket_launch", "text-sm mr-1"), "Dispatch Operational Task", type="submit", cls="w-full py-2.5 font-semibold text-sm"),
+                        btn_primary(icon("rocket_launch", "text-sm mr-1"), "Dispatch Operational Task", type="submit", cls="w-full py-2.5 font-semibold text-sm", loading_text="Dispatching Task..."),
                         method="post",
                         action="/vice-president/dispatch"
                     ),

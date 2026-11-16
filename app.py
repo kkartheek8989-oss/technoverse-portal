@@ -48,7 +48,7 @@ def login_form(error="", success="", roll=""):
                     Button(icon("visibility"), type="button", onclick="var p=document.getElementById('pw');p.type=p.type=='password'?'text':'password'", cls="text-muted text-xs mt-1 hover:text-white bg-transparent border-0 cursor-pointer"),
                     cls="mb-4"
                 ),
-                btn_primary("Sign in", type="submit", cls="w-full py-2.5 font-semibold text-base"),
+                btn_primary("Sign in", type="submit", cls="w-full py-2.5 font-semibold text-base", loading_text="Authenticating..."),
                 method="post",
                 action="/login"
             ),

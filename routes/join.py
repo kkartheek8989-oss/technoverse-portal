@@ -75,7 +75,7 @@ def join_requests_get(session, status_filter: str = "all"):
                 textarea_field("Statement of Interest / Skills", "message", placeholder="Why does the candidate want to join Technoverse Club?...", rows=3),
                 Div(
                     btn_ghost("Cancel", type="button", onclick="document.getElementById('applicant-modal').classList.add('hidden')"),
-                    btn_primary("Submit Application", type="submit"),
+                    btn_primary("Submit Application", type="submit", loading_text="Submitting..."),
                     cls="flex justify-end gap-3 mt-6"
                 ),
                 method="post", action="/join-requests/new"

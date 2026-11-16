@@ -117,7 +117,7 @@ def files_get(session, folder: str = "all", msg: str = "", error: str = ""):
                 input_field("Custom Display Name (Optional)", "custom_name", placeholder="Leave blank to keep original filename", required=False),
                 Div(
                     btn_ghost("Cancel", type="button", onclick="document.getElementById('cloud-upload-modal').classList.add('hidden')"),
-                    btn_primary(icon("cloud_upload", "text-sm mr-1"), "Upload to Supabase Cloud", type="submit"),
+                    btn_primary(icon("cloud_upload", "text-sm mr-1"), "Upload to Supabase Cloud", type="submit", loading_text="Uploading to Cloud..."),
                     cls="flex justify-end gap-3 mt-6 pt-4 border-t border-white/[0.08]"
                 ),
                 method="post",
