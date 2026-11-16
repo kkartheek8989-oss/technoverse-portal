@@ -6,6 +6,7 @@ from starlette.datastructures import UploadFile
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, can, log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 FOLDERS = ["General", "Circulars", "Documents", "Minutes", "Finance", "Event Assets", "Learning", "Media"]
 
@@ -28,11 +29,14 @@ def files_get(session, folder: str = "all", msg: str = "", error: str = ""):
     role = session.get("view_as") or u["role"]
     rank = RANKS.get(role, 1)
 
-    try:
-        files = supabase.table("files").select("*, uploader_member:uploader(name, roll)").order("created_at", desc=True).execute().data or []
-    except Exception as e:
-        print("Error fetching files:", e)
-        files = []
+    files = get_cached("files_list", ttl=20)
+    if files is None:
+        try:
+            files = supabase.table("files").select("*, uploader_member:uploader(name, roll)").order("created_at", desc=True).execute().data or []
+            set_cached("files_list", files)
+        except Exception as e:
+            print("Error fetching files:", e)
+            files = []
 
     total_bytes = sum(f.get("size") or 0 for f in files)
     active_files = [f for f in files if folder == "all" or f.get("folder") == folder]
@@ -279,6 +283,7 @@ async def files_upload_post(session, folder: str, upload_file: UploadFile, custo
         }).execute()
 
         if res.data:
+            invalidate_cache("files_")
             log_activity(session, "cloud_file_upload", "files", res.data[0]["id"], f"Uploaded '{display_name}' ({format_bytes(len(contents))}) to Supabase Cloud")
     except Exception as e:
         print("Files table record insertion failed:", e)
@@ -302,6 +307,7 @@ def files_new_post(session, name: str, folder: str, link_url: str):
     try:
         res = supabase.table("files").insert(payload).execute()
         if res.data:
+            invalidate_cache("files_")
             log_activity(session, "file_added", "files", res.data[0]["id"], f"Added document: {name.strip()} ({folder})")
     except Exception as e:
         print("File addition error:", e)
@@ -322,6 +328,7 @@ def files_delete_post(session, fid: int):
             except Exception as e:
                 print("Notice: could not delete from storage bucket:", e)
         supabase.table("files").delete().eq("id", fid).execute()
+        invalidate_cache("files_")
         log_activity(session, "file_deleted", "files", fid, "Deleted document")
     except Exception as e:
         print("File delete error:", e)

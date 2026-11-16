@@ -3,6 +3,7 @@ from pathlib import Path
 from fasthtml.common import *
 from db import supabase
 from theme import hdrs
+from cache import get_cached, set_cached, invalidate_cache
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_PATH = str(BASE_DIR / "public")
@@ -23,9 +24,16 @@ def current_user(session):
     uid = session.get("uid")
     if not uid:
         return None
+    cache_key = f"user_{uid}"
+    cached = get_cached(cache_key, ttl=30)
+    if cached is not None:
+        return cached
     try:
         rows = supabase.table("members").select("*").eq("id", uid).eq("active", True).limit(1).execute().data
-        return rows[0] if rows else None
+        user = rows[0] if rows else None
+        if user:
+            set_cached(cache_key, user)
+        return user
     except Exception as e:
         print("Error fetching current user:", e)
         return None

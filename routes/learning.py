@@ -2,6 +2,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, can, log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 TRACKS = ["Web Development", "AI & Machine Learning", "Cyber Security", "Cloud & DevOps", "System Design", "Competitive Programming"]
 LEVELS = ["beginner", "intermediate", "advanced"]
@@ -14,10 +15,13 @@ def learning_get(session, track: str = "all", level: str = "all"):
     role = session.get("view_as") or u["role"]
     rank = RANKS.get(role, 1)
 
-    try:
-        resources = supabase.table("resources").select("*, creator:created_by(name)").order("created_at", desc=True).execute().data or []
-    except Exception:
-        resources = []
+    resources = get_cached("learning_resources", ttl=30)
+    if resources is None:
+        try:
+            resources = supabase.table("resources").select("*, creator:created_by(name)").order("created_at", desc=True).execute().data or []
+            set_cached("learning_resources", resources)
+        except Exception:
+            resources = []
 
     if track != "all":
         resources = [r for r in resources if r.get("track") == track]
@@ -138,6 +142,7 @@ def learning_new_post(session, title: str, track: str, level: str, link_url: str
 
     try:
         res = supabase.table("resources").insert(payload).execute()
+        invalidate_cache("learning_")
         if res.data:
             log_activity(session, "resource_created", "learning", res.data[0]["id"], f"Added learning resource: {title.strip()}")
     except Exception as e:

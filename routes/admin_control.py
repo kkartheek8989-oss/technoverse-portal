@@ -4,6 +4,7 @@ from core import rt, current_user, go, supabase
 from components import *
 from auth import log_activity
 from site_config import get_site_config, bulk_update_settings, reset_settings_to_defaults
+from cache import invalidate_cache
 
 @rt("/admin-control", methods=["GET"])
 def admin_control_get(session, msg: str = "", error: str = ""):
@@ -197,6 +198,7 @@ async def admin_control_save_post(session, req: Request):
     form = await req.form()
     form_data = {k: str(v) for k, v in form.items()}
     bulk_update_settings(form_data)
+    invalidate_cache()
     log_activity(session, "cms_update", "settings", None, f"Admin {u['name']} ({u['role']}) updated website configuration via Admin Control")
 
     return go("/admin-control?msg=All+website+sections+successfully+updated+live!")
@@ -208,6 +210,7 @@ def admin_control_reset_post(session):
         return go("/login")
 
     reset_settings_to_defaults()
+    invalidate_cache()
     log_activity(session, "cms_reset", "settings", None, f"Admin {u['name']} reset website content to University defaults")
 
     return go("/admin-control?msg=Website+content+successfully+reset+to+University+defaults.")

@@ -2,6 +2,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, hash_pw, check_pw, log_activity
+from cache import invalidate_cache
 
 @rt("/settings", methods=["GET"])
 def settings_get(session, tab: str = "profile", success: str = "", error: str = ""):
@@ -117,6 +118,7 @@ def settings_password_post(session, current_pw: str, new_pw: str, confirm_pw: st
     try:
         new_hash = hash_pw(new_pw)
         supabase.table("members").update({"pw_hash": new_hash}).eq("id", u["id"]).execute()
+        invalidate_cache(f"user_{u['id']}")
         log_activity(session, "password_changed", "settings", u["id"], "User changed their password")
         return go("/settings?tab=security&success=Password+updated+successfully")
     except Exception as e:
@@ -135,6 +137,7 @@ def settings_admin_post(session, club_name: str, fiscal_term: str, expense_thres
             {"key": "fiscal_term", "value": fiscal_term.strip()},
             {"key": "expense_approval_threshold", "value": str(expense_threshold).strip()}
         ]).execute()
+        invalidate_cache()
         log_activity(session, "settings_updated", "settings", None, f"Updated club parameters: {club_name.strip()}")
         return go("/settings?tab=admin&success=Club+parameters+saved+successfully")
     except Exception as e:

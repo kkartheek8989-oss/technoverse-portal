@@ -4,6 +4,7 @@ from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, can, log_activity
 from site_config import get_site_config
+from cache import get_cached, set_cached, invalidate_cache
 
 @rt("/", methods=["GET"])
 def dashboard_get(session):
@@ -13,35 +14,47 @@ def dashboard_get(session):
     role = session.get("view_as") or u["role"]
     rank = RANKS.get(role, 1)
 
-    # 1. Fetch Tasks
-    try:
-        tasks = supabase.table("tasks").select("id,code,title,status,assigned_to,due_at").execute().data or []
-    except Exception as e:
-        print("Warning: tasks fetch failed:", e)
-        tasks = []
+    # 1. Fetch Tasks (cached 15s)
+    tasks = get_cached("dashboard_tasks", ttl=15)
+    if tasks is None:
+        try:
+            tasks = supabase.table("tasks").select("id,code,title,status,assigned_to,due_at").execute().data or []
+            set_cached("dashboard_tasks", tasks)
+        except Exception as e:
+            print("Warning: tasks fetch failed:", e)
+            tasks = []
 
     mine = [t for t in tasks if t.get("assigned_to") == u["id"] and t.get("status") != "done"]
 
-    # 2. Fetch Recent Activity
-    since = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
-    try:
-        act = supabase.table("activity").select("member_id").gte("created_at", since).execute().data or []
-    except Exception as e:
-        print("Warning: activity fetch failed:", e)
-        act = []
+    # 2. Fetch Recent Activity (cached 20s)
+    act = get_cached("dashboard_act", ttl=20)
+    if act is None:
+        since = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+        try:
+            act = supabase.table("activity").select("member_id").gte("created_at", since).execute().data or []
+            set_cached("dashboard_act", act)
+        except Exception as e:
+            print("Warning: activity fetch failed:", e)
+            act = []
 
-    # 3. Fetch Announcements
-    try:
-        anns = supabase.table("announcements").select("*").order("pinned", desc=True).order("created_at", desc=True).limit(5).execute().data or []
-    except Exception as e:
-        print("Warning: announcements fetch failed:", e)
-        anns = []
+    # 3. Fetch Announcements (cached 30s)
+    anns = get_cached("dashboard_anns", ttl=30)
+    if anns is None:
+        try:
+            anns = supabase.table("announcements").select("*").order("pinned", desc=True).order("created_at", desc=True).limit(5).execute().data or []
+            set_cached("dashboard_anns", anns)
+        except Exception as e:
+            print("Warning: announcements fetch failed:", e)
+            anns = []
 
-    # 4. Fetch Flagship Events
-    try:
-        events = supabase.table("events").select("*").order("starts_at", desc=False).limit(3).execute().data or []
-    except Exception:
-        events = []
+    # 4. Fetch Flagship Events (cached 30s)
+    events = get_cached("dashboard_events", ttl=30)
+    if events is None:
+        try:
+            events = supabase.table("events").select("*").order("starts_at", desc=False).limit(3).execute().data or []
+            set_cached("dashboard_events", events)
+        except Exception:
+            events = []
 
     if not anns:
         anns = [
@@ -307,6 +320,8 @@ def task_done(session, tid: int):
     if RANKS.get(u["role"], 1) < 3:
         q = q.eq("assigned_to", u["id"])
     res = q.execute()
+    invalidate_cache("dashboard_")
+    invalidate_cache("tasks_")
     if res.data:
         log_activity(session, "task_done", "tasks", tid, res.data[0].get("title", ""))
     return go("/")

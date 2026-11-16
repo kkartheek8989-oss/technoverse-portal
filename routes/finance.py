@@ -2,6 +2,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, can, log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 @rt("/finance", methods=["GET"])
 def finance_get(session, tab: str = "expenses"):
@@ -15,15 +16,21 @@ def finance_get(session, tab: str = "expenses"):
         # Restricted section
         return page(session, u, "Club Finance", card(H2("Access Restricted", cls="font-heading font-bold text-xl text-red-400 mb-2"), P("You do not have permission to view the club finance ledger. Only Treasurers and Executive Board members have access.", cls="text-sm text-secondary")))
 
-    try:
-        expenses = supabase.table("expenses").select("*, submitter:submitted_by(name, roll)").order("created_at", desc=True).execute().data or []
-    except Exception:
-        expenses = []
+    expenses = get_cached("finance_expenses", ttl=15)
+    if expenses is None:
+        try:
+            expenses = supabase.table("expenses").select("*, submitter:submitted_by(name, roll)").order("created_at", desc=True).execute().data or []
+            set_cached("finance_expenses", expenses)
+        except Exception:
+            expenses = []
 
-    try:
-        sponsorships = supabase.table("sponsorships").select("*").order("created_at", desc=True).execute().data or []
-    except Exception:
-        sponsorships = []
+    sponsorships = get_cached("finance_sponsorships", ttl=15)
+    if sponsorships is None:
+        try:
+            sponsorships = supabase.table("sponsorships").select("*").order("created_at", desc=True).execute().data or []
+            set_cached("finance_sponsorships", sponsorships)
+        except Exception:
+            sponsorships = []
 
     # Financial calculations
     total_spent = sum(float(e.get("amount") or 0) for e in expenses if e.get("status") == "approved")
@@ -203,6 +210,7 @@ def finance_expense_new(session, description: str, amount: float):
     try:
         res = supabase.table("expenses").insert(payload).execute()
         if res.data:
+            invalidate_cache("finance_")
             log_activity(session, "expense_submitted", "finance", res.data[0]["id"], f"Submitted expense {format_inr(amount)}: {description.strip()}")
     except Exception as e:
         print("Expense submission error:", e)
@@ -220,6 +228,7 @@ def finance_expense_authorize(session, eid: int, action_type: str):
     new_st = "approved" if action_type == "approved" else "rejected"
     try:
         supabase.table("expenses").update({"status": new_st, "approved_by": u["id"]}).eq("id", eid).execute()
+        invalidate_cache("finance_")
         log_activity(session, f"expense_{new_st}", "finance", eid, f"{new_st.title()} expense #{eid}")
     except Exception as e:
         print("Expense authorization error:", e)
@@ -242,6 +251,7 @@ def finance_sponsor_new(session, sponsor: str, amount: float, status: str = "rec
     try:
         res = supabase.table("sponsorships").insert(payload).execute()
         if res.data:
+            invalidate_cache("finance_")
             log_activity(session, "sponsorship_added", "finance", res.data[0]["id"], f"Added sponsorship {format_inr(amount)} from {sponsor.strip()}")
     except Exception as e:
         print("Sponsorship addition error:", e)

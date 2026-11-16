@@ -3,6 +3,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, can, log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 @rt("/tasks", methods=["GET"])
 def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str = "all", edit_id: int = None):
@@ -12,18 +13,24 @@ def tasks_get(session, filter: str = "all", priority: str = "all", sprint: str =
     role = session.get("view_as") or u["role"]
     rank = RANKS.get(role, 1)
 
-    # Fetch tasks
-    try:
-        tasks = supabase.table("tasks").select("*, assigned:assigned_to(id, name, roll)").order("created_at", desc=True).execute().data or []
-    except Exception as e:
-        print("Tasks fetch error:", e)
-        tasks = []
+    # Fetch tasks (cached 15s)
+    tasks = get_cached("tasks_list", ttl=15)
+    if tasks is None:
+        try:
+            tasks = supabase.table("tasks").select("*, assigned:assigned_to(id, name, roll)").order("created_at", desc=True).execute().data or []
+            set_cached("tasks_list", tasks)
+        except Exception as e:
+            print("Tasks fetch error:", e)
+            tasks = []
 
-    # Fetch members for assignment dropdown
-    try:
-        members = supabase.table("members").select("id, name, roll, role").eq("active", True).execute().data or []
-    except Exception:
-        members = []
+    # Fetch members for assignment dropdown (cached 30s)
+    members = get_cached("members_active", ttl=30)
+    if members is None:
+        try:
+            members = supabase.table("members").select("id, name, roll, role").eq("active", True).execute().data or []
+            set_cached("members_active", members)
+        except Exception:
+            members = []
 
     # Task to edit if edit_id is passed
     task_to_edit = None
@@ -288,6 +295,8 @@ def task_edit_post(session, tid: int, title: str, description: str = "", status:
 
     try:
         res = supabase.table("tasks").update(payload).eq("id", tid).execute()
+        invalidate_cache("tasks_")
+        invalidate_cache("dashboard_")
         if res.data:
             log_activity(session, "task_edited", "tasks", tid, f"Updated task: {title.strip()}")
     except Exception as e:
@@ -316,6 +325,8 @@ def tasks_new_post(session, title: str, description: str = "", priority: str = "
 
     try:
         res = supabase.table("tasks").insert(payload).execute()
+        invalidate_cache("tasks_")
+        invalidate_cache("dashboard_")
         if res.data:
             log_activity(session, "task_created", "tasks", res.data[0]["id"], f"Created task: {title.strip()}")
     except Exception as e:
@@ -337,6 +348,8 @@ def task_update_status(session, tid: int, status: str):
         q = q.eq("assigned_to", u["id"])
     
     res = q.execute()
+    invalidate_cache("tasks_")
+    invalidate_cache("dashboard_")
     if res.data:
         log_activity(session, f"task_{status}", "tasks", tid, f"Status updated to {status}: {res.data[0].get('title', '')}")
     return go("/tasks")
@@ -349,6 +362,8 @@ def task_delete(session, tid: int):
 
     try:
         supabase.table("tasks").delete().eq("id", tid).execute()
+        invalidate_cache("tasks_")
+        invalidate_cache("dashboard_")
         log_activity(session, "task_deleted", "tasks", tid, "Deleted task")
     except Exception as e:
         print("Task delete failed:", e)

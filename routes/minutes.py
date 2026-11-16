@@ -2,6 +2,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, can, log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 @rt("/minutes", methods=["GET"])
 def minutes_get(session):
@@ -14,15 +15,21 @@ def minutes_get(session):
     if rank < 3 and role != "secretary":
         return page(session, u, "Meeting Minutes", card(H2("Access Restricted", cls="font-heading font-bold text-xl text-red-400 mb-2"), P("Meeting Minutes are reserved for Secretary, Leads, and Executive Board members.", cls="text-sm text-secondary")))
 
-    try:
-        sessions = supabase.table("minutes").select("*, creator:created_by(name)").order("held_at", desc=True).execute().data or []
-    except Exception:
-        sessions = []
+    sessions = get_cached("minutes_sessions", ttl=20)
+    if sessions is None:
+        try:
+            sessions = supabase.table("minutes").select("*, creator:created_by(name)").order("held_at", desc=True).execute().data or []
+            set_cached("minutes_sessions", sessions)
+        except Exception:
+            sessions = []
 
-    try:
-        actions = supabase.table("action_items").select("*").execute().data or []
-    except Exception:
-        actions = []
+    actions = get_cached("minutes_actions", ttl=20)
+    if actions is None:
+        try:
+            actions = supabase.table("action_items").select("*").execute().data or []
+            set_cached("minutes_actions", actions)
+        except Exception:
+            actions = []
 
     actions_by_mid = {}
     for a in actions:
@@ -141,6 +148,7 @@ def minutes_new_post(session, title: str, held_at: str, summary: str, action_ite
 
     try:
         res = supabase.table("minutes").insert(payload).execute()
+        invalidate_cache("minutes_")
         if res.data:
             mid = res.data[0]["id"]
             log_activity(session, "minutes_created", "minutes", mid, f"Recorded minutes: {title.strip()}")
@@ -183,6 +191,9 @@ def minutes_convert_to_tasks(session, mid: int):
                 tid = task_res.data[0]["id"]
                 supabase.table("action_items").update({"task_id": tid}).eq("id", item["id"]).execute()
                 converted_count += 1
+        invalidate_cache("minutes_")
+        invalidate_cache("tasks_")
+        invalidate_cache("dashboard_")
         log_activity(session, "action_items_converted", "minutes", mid, f"Converted {converted_count} action items into Tasks")
     except Exception as e:
         print("Convert to tasks error:", e)

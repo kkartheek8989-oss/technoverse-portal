@@ -232,7 +232,7 @@ button:active:not(:disabled), .btn:active:not(:disabled) {
 }
 ''')
 
-# Client-Side Top Progress Bar and Button Loading Script
+# Client-Side Top Progress Bar, Section Loader, and Button Loading Script
 GLOBAL_SCRIPT = Script('''
 document.addEventListener("DOMContentLoaded", function() {
   // Ensure progress bar exists in DOM
@@ -245,10 +245,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
   function startProgress() {
     bar.style.opacity = "1";
-    bar.style.width = "25%";
+    bar.style.width = "35%";
     setTimeout(function() {
-      if (bar.style.opacity === "1") bar.style.width = "75%";
-    }, 150);
+      if (bar.style.opacity === "1") bar.style.width = "80%";
+    }, 120);
   }
 
   function finishProgress() {
@@ -257,7 +257,37 @@ document.addEventListener("DOMContentLoaded", function() {
       bar.style.opacity = "0";
       setTimeout(function() { bar.style.width = "0%"; }, 220);
     }, 180);
+    hideSectionLoader();
   }
+
+  function hideSectionLoader() {
+    var overlay = document.getElementById("section-loading-overlay");
+    if (overlay) {
+      overlay.classList.remove("opacity-100");
+      overlay.classList.add("opacity-0", "pointer-events-none");
+    }
+    document.querySelectorAll(".nav-spinner").forEach(function(s) {
+      s.classList.add("hidden");
+    });
+  }
+
+  // Clear loaders on initial DOM mount
+  hideSectionLoader();
+
+  // Instant prefetch on link hover
+  var prefetchedUrls = new Set();
+  document.addEventListener("mouseover", function(e) {
+    var a = e.target.closest("a");
+    if (!a || !a.href || a.origin !== window.location.origin) return;
+    var url = a.href;
+    if (prefetchedUrls.has(url)) return;
+    if (url.includes("/logout") || url.includes("delete") || url.includes("/reset")) return;
+    prefetchedUrls.add(url);
+    var prefetchLink = document.createElement("link");
+    prefetchLink.rel = "prefetch";
+    prefetchLink.href = url;
+    document.head.appendChild(prefetchLink);
+  });
 
   // HTMX Lifecycle Events
   document.body.addEventListener("htmx:configRequest", function() {
@@ -277,6 +307,26 @@ document.addEventListener("DOMContentLoaded", function() {
       var hrefAttr = a.getAttribute("href");
       if (hrefAttr && hrefAttr.startsWith("#")) return;
       startProgress();
+
+      // Show section loading overlay
+      var navLabel = a.getAttribute("data-nav") || a.innerText.trim();
+      var overlay = document.getElementById("section-loading-overlay");
+      var loaderText = document.getElementById("section-loading-text");
+      if (overlay && loaderText) {
+        if (navLabel && navLabel.length < 30) {
+          loaderText.textContent = "Loading " + navLabel + "...";
+        } else {
+          loaderText.textContent = "Loading Section...";
+        }
+        overlay.classList.remove("opacity-0", "pointer-events-none");
+        overlay.classList.add("opacity-100");
+      }
+
+      // Show spinner on the clicked nav link
+      var spinner = a.querySelector(".nav-spinner");
+      if (spinner) {
+        spinner.classList.remove("hidden");
+      }
     }
   });
 
@@ -288,6 +338,7 @@ document.addEventListener("DOMContentLoaded", function() {
   // Pageshow (Reset on browser back/forward cache navigation)
   window.addEventListener("pageshow", function(e) {
     finishProgress();
+    hideSectionLoader();
     document.querySelectorAll(".btn-submitting").forEach(function(b) {
       b.classList.remove("btn-submitting");
       var sp = b.querySelector(".spinner-ring");

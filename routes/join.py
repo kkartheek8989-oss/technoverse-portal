@@ -2,6 +2,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, hash_pw, log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 @rt("/join-requests", methods=["GET"])
 def join_requests_get(session, status_filter: str = "all"):
@@ -14,10 +15,13 @@ def join_requests_get(session, status_filter: str = "all"):
     if rank < 4:
         return page(session, u, "Join Requests", card(H2("Executive Access Only", cls="font-heading font-bold text-xl text-red-400 mb-2"), P("Recruitment review and applicant onboarding is restricted to Vice Presidents, Presidents, and the Club Coordinator.", cls="text-sm text-secondary")))
 
-    try:
-        reqs = supabase.table("join_requests").select("*").order("created_at", desc=True).execute().data or []
-    except Exception:
-        reqs = []
+    reqs = get_cached("join_requests", ttl=15)
+    if reqs is None:
+        try:
+            reqs = supabase.table("join_requests").select("*").order("created_at", desc=True).execute().data or []
+            set_cached("join_requests", reqs)
+        except Exception:
+            reqs = []
 
     if status_filter != "all":
         reqs = [r for r in reqs if r.get("status") == status_filter]
@@ -130,6 +134,7 @@ def join_new_post(session, name: str, roll: str, branch: str, year: int, message
     try:
         res = supabase.table("join_requests").insert(payload).execute()
         if res.data:
+            invalidate_cache("join_")
             log_activity(session, "candidate_applied", "join_requests", res.data[0]["id"], f"Candidate application received: {name.strip()}")
     except Exception as e:
         print("Application addition error:", e)
@@ -159,8 +164,12 @@ def join_decision_post(session, rid: int, action: str):
                 "pw_hash": hash_pw(default_pw),
                 "active": True
             }).execute()
+            invalidate_cache("team_")
+            invalidate_cache("user_")
+            invalidate_cache("members_")
 
         supabase.table("join_requests").update({"status": new_st, "decided_by": u["id"]}).eq("id", rid).execute()
+        invalidate_cache("join_")
         log_activity(session, f"join_request_{new_st}", "join_requests", rid, f"{new_st.title()} candidate {cand.get('name') if cand else rid}")
     except Exception as e:
         print("Candidate decision error:", e)

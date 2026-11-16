@@ -4,6 +4,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 # Default campus venue clearances list
 CAMPUS_VENUES = [
@@ -22,25 +23,34 @@ def vice_president_dashboard(session, msg: str = "", error: str = ""):
         return go("/?error=Access+Restricted:+The+VP+Operations+Command+is+exclusively+reserved+for+the+Vice+President.")
 
     # Fetch recent VP Dispatches from tasks
-    try:
-        dispatches = supabase.table("tasks").select("*").ilike("title", "%[VP DISPATCH]%").order("created_at", desc=True).limit(6).execute().data or []
-    except Exception as e:
-        print("Error fetching VP dispatches:", e)
-        dispatches = []
+    dispatches = get_cached("vp_dispatches", ttl=15)
+    if dispatches is None:
+        try:
+            dispatches = supabase.table("tasks").select("*").ilike("title", "%[VP DISPATCH]%").order("created_at", desc=True).limit(6).execute().data or []
+            set_cached("vp_dispatches", dispatches)
+        except Exception as e:
+            print("Error fetching VP dispatches:", e)
+            dispatches = []
 
     # Fetch leads to whom VP can delegate operational tasks
-    try:
-        leads = supabase.table("members").select("id, name, roll, role, branch").in_("role", ["technical_lead", "event_coordinator", "secretary", "treasurer"]).execute().data or []
-    except Exception as e:
-        print("Error fetching leads for VP:", e)
-        leads = []
+    leads = get_cached("vp_leads", ttl=30)
+    if leads is None:
+        try:
+            leads = supabase.table("members").select("id, name, roll, role, branch").in_("role", ["technical_lead", "event_coordinator", "secretary", "treasurer"]).execute().data or []
+            set_cached("vp_leads", leads)
+        except Exception as e:
+            print("Error fetching leads for VP:", e)
+            leads = []
 
     # Fetch pending action items from minutes
-    try:
-        action_items = supabase.table("action_items").select("*").limit(6).execute().data or []
-    except Exception as e:
-        print("Error fetching action items:", e)
-        action_items = []
+    action_items = get_cached("vp_action_items", ttl=15)
+    if action_items is None:
+        try:
+            action_items = supabase.table("action_items").select("*").limit(6).execute().data or []
+            set_cached("vp_action_items", action_items)
+        except Exception as e:
+            print("Error fetching action items:", e)
+            action_items = []
 
     lead_options = [(m["id"], f"{m['name']} ({m['role'].replace('_', ' ').title()} • {m['branch']})") for m in leads]
     if not lead_options:
@@ -247,6 +257,8 @@ def vp_dispatch_post(session, title: str, assigned_to: str, priority: str, descr
             "created_at": now_iso
         }).execute()
 
+        invalidate_cache("tasks_")
+        invalidate_cache("dashboard_")
         log_activity(session, "vp_dispatch", "tasks", None, f"VP {user['name']} dispatched operational task '{clean_title}'")
     except Exception as e:
         print("Error creating task from VP dispatch:", e)

@@ -3,6 +3,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, can, log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 FLAGSHIPS = ["none", "CodeX", "AI Nexus", "CyberShield", "DataVerse"]
 CATEGORIES = ["Technical", "Workshop", "Hackathon", "Seminar", "Meetup", "Cultural"]
@@ -15,11 +16,15 @@ def events_get(session, flagship: str = "all", category: str = "all", edit_id: i
     role = session.get("view_as") or u["role"]
     rank = RANKS.get(role, 1)
 
-    try:
-        events = supabase.table("events").select("*, creator:created_by(name)").order("starts_at", desc=False).execute().data or []
-    except Exception as e:
-        print("Events fetch error:", e)
-        events = []
+    # Fetch events (cached 20s)
+    events = get_cached("events_list", ttl=20)
+    if events is None:
+        try:
+            events = supabase.table("events").select("*, creator:created_by(name)").order("starts_at", desc=False).execute().data or []
+            set_cached("events_list", events)
+        except Exception as e:
+            print("Events fetch error:", e)
+            events = []
 
     # Get my registrations
     try:
@@ -28,15 +33,18 @@ def events_get(session, flagship: str = "all", category: str = "all", edit_id: i
     except Exception:
         my_reg_map = {}
 
-    # Get registration counts per event
-    try:
-        all_regs = supabase.table("event_registrations").select("event_id").execute().data or []
-        reg_counts = {}
-        for r in all_regs:
-            eid = r["event_id"]
-            reg_counts[eid] = reg_counts.get(eid, 0) + 1
-    except Exception:
-        reg_counts = {}
+    # Get registration counts per event (cached 20s)
+    reg_counts = get_cached("events_reg_counts", ttl=20)
+    if reg_counts is None:
+        try:
+            all_regs = supabase.table("event_registrations").select("event_id").execute().data or []
+            reg_counts = {}
+            for r in all_regs:
+                eid = r["event_id"]
+                reg_counts[eid] = reg_counts.get(eid, 0) + 1
+            set_cached("events_reg_counts", reg_counts)
+        except Exception:
+            reg_counts = {}
 
     # Event to edit
     event_to_edit = None
@@ -283,6 +291,8 @@ def event_edit_post(session, eid: int, title: str, category: str, flagship: str,
 
     try:
         res = supabase.table("events").update(payload).eq("id", eid).execute()
+        invalidate_cache("events_")
+        invalidate_cache("dashboard_")
         if res.data:
             log_activity(session, "event_edited", "events", eid, f"Updated event: {title.strip()}")
     except Exception as e:
@@ -300,6 +310,8 @@ def event_delete_post(session, eid: int):
 
     try:
         supabase.table("events").delete().eq("id", eid).execute()
+        invalidate_cache("events_")
+        invalidate_cache("dashboard_")
         log_activity(session, "event_deleted", "events", eid, f"Deleted event #{eid}")
     except Exception as e:
         print("Event delete error:", e)
@@ -328,6 +340,8 @@ def events_new_post(session, title: str, category: str, flagship: str, starts_at
 
     try:
         res = supabase.table("events").insert(payload).execute()
+        invalidate_cache("events_")
+        invalidate_cache("dashboard_")
         if res.data:
             log_activity(session, "event_created", "events", res.data[0]["id"], f"Scheduled event: {title.strip()}")
     except Exception as e:
@@ -352,6 +366,7 @@ def events_register(session, eid: int):
             "member_id": u["id"],
             "status": status
         }).execute()
+        invalidate_cache("events_")
         log_activity(session, f"event_{status}", "events", eid, f"Registered for event ({status})")
     except Exception as e:
         print("Registration error:", e)

@@ -4,6 +4,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 @rt("/president", methods=["GET"])
 def president_dashboard(session, msg: str = "", error: str = ""):
@@ -14,25 +15,34 @@ def president_dashboard(session, msg: str = "", error: str = ""):
         return go("/?error=Access+Restricted:+The+Presidential+Desk+is+exclusively+reserved+for+the+Club+President.")
 
     # Fetch recent presidential decrees / directives from announcements or activity
-    try:
-        directives = supabase.table("activity").select("*").eq("section", "president").order("created_at", desc=True).limit(10).execute().data or []
-    except Exception as e:
-        print("Error fetching presidential directives:", e)
-        directives = []
+    directives = get_cached("pres_directives", ttl=15)
+    if directives is None:
+        try:
+            directives = supabase.table("activity").select("*").eq("section", "president").order("created_at", desc=True).limit(10).execute().data or []
+            set_cached("pres_directives", directives)
+        except Exception as e:
+            print("Error fetching presidential directives:", e)
+            directives = []
 
     # Fetch pending high-value expenses for presidential sanction (> 5000 or pending)
-    try:
-        expenses = supabase.table("expenses").select("*").order("created_at", desc=True).limit(6).execute().data or []
-    except Exception as e:
-        print("Error fetching expenses for president:", e)
-        expenses = []
+    expenses = get_cached("pres_expenses", ttl=15)
+    if expenses is None:
+        try:
+            expenses = supabase.table("expenses").select("*").order("created_at", desc=True).limit(6).execute().data or []
+            set_cached("pres_expenses", expenses)
+        except Exception as e:
+            print("Error fetching expenses for president:", e)
+            expenses = []
 
     # Fetch team leads overview
-    try:
-        leads = supabase.table("members").select("name, roll, role, branch").in_("role", ["vice_president", "secretary", "treasurer", "technical_lead", "event_coordinator"]).execute().data or []
-    except Exception as e:
-        print("Error fetching leads:", e)
-        leads = []
+    leads = get_cached("pres_leads", ttl=30)
+    if leads is None:
+        try:
+            leads = supabase.table("members").select("name, roll, role, branch").in_("role", ["vice_president", "secretary", "treasurer", "technical_lead", "event_coordinator"]).execute().data or []
+            set_cached("pres_leads", leads)
+        except Exception as e:
+            print("Error fetching leads:", e)
+            leads = []
 
     return page(
         session, user, "Presidential Governance Desk",
@@ -264,6 +274,7 @@ def presidential_directive_post(session, title: str, category: str, target_wing:
     except Exception as e:
         print("Error posting directive to announcements:", e)
 
+    invalidate_cache("dashboard_")
     return go(f"/president?msg=Presidential+Directive+'{clean_title}'+successfully+broadcast+to+{target_wing}.")
 
 @rt("/president/sanction", methods=["POST"])
@@ -274,6 +285,7 @@ def presidential_sanction_post(session, expense_id: str):
     
     try:
         supabase.table("expenses").update({"status": "approved"}).eq("id", expense_id).execute()
+        invalidate_cache("finance_")
         log_activity(session, "presidential_sanction", "finance", expense_id, f"President {user['name']} granted executive sanction to expense #{expense_id}")
     except Exception as e:
         print("Error granting presidential sanction:", e)

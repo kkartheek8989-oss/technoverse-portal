@@ -2,6 +2,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS, hash_pw, can, log_activity
+from cache import get_cached, set_cached, invalidate_cache
 
 ROLES_LIST = [
     ("club_coordinator", "Club Coordinator (Superadmin - Rank 5)"),
@@ -33,11 +34,14 @@ def team_get(session, role_filter: str = "all", search: str = ""):
     role = session.get("view_as") or u["role"]
     rank = RANKS.get(role, 1)
 
-    try:
-        members = supabase.table("members").select("*").order("created_at", desc=False).execute().data or []
-    except Exception as e:
-        print("Members fetch error:", e)
-        members = []
+    members = get_cached("team_members", ttl=30)
+    if members is None:
+        try:
+            members = supabase.table("members").select("*").order("created_at", desc=False).execute().data or []
+            set_cached("team_members", members)
+        except Exception as e:
+            print("Members fetch error:", e)
+            members = []
 
     # Sort by rank descending
     members.sort(key=lambda m: RANKS.get(m.get("role"), 1), reverse=True)
@@ -196,6 +200,9 @@ def team_new_post(session, name: str, roll: str, email: str, role: str, password
 
     try:
         res = supabase.table("members").insert(payload).execute()
+        invalidate_cache("team_")
+        invalidate_cache("user_")
+        invalidate_cache("members_")
         if res.data:
             log_activity(session, "member_provisioned", "team", res.data[0]["id"], f"Provisioned member: {name.strip()} ({role})")
     except Exception as e:
@@ -217,6 +224,9 @@ def team_update_role(session, mid: str, new_role: str):
 
     try:
         supabase.table("members").update({"role": new_role}).eq("id", mid).execute()
+        invalidate_cache("team_")
+        invalidate_cache("user_")
+        invalidate_cache("members_")
         log_activity(session, "role_changed", "team", mid, f"Updated role to {new_role}")
     except Exception as e:
         print("Role update error:", e)

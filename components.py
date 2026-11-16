@@ -164,8 +164,30 @@ NAV = [
     ("Portal Settings", "/settings", "settings", 1)
 ]
 
-def _link(label, url, ic, cls="px-3.5 py-2.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-150"):
-    return A(icon(ic, "text-slate-400 group-hover:text-blue-400 text-lg"), Span(label), href=url, cls=f"group flex items-center gap-3 {cls}")
+def _link(label, url, ic, is_active=False):
+    base_cls = "nav-link group flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium rounded-xl transition-all duration-150 relative"
+    if is_active:
+        active_cls = "bg-blue-600/15 text-blue-400 border border-blue-500/30 font-semibold shadow-sm"
+    else:
+        active_cls = "text-slate-300 hover:text-white hover:bg-white/[0.06] border border-transparent"
+    return A(
+        icon(ic, "text-slate-400 group-hover:text-blue-400 text-lg transition-colors"),
+        Span(label, cls="flex-1"),
+        Span(cls="nav-spinner hidden spinner-ring w-3.5 h-3.5 border-blue-400/30 border-t-cyan-400 shrink-0"),
+        href=url,
+        data_nav=label,
+        cls=f"{base_cls} {active_cls}"
+    )
+
+def _bottom_link(label, url, ic, is_active=False):
+    col = "text-blue-400 font-semibold" if is_active else "text-slate-400 hover:text-white"
+    return A(
+        icon(ic),
+        Span(label.split()[0], cls="text-[10px] font-mono"),
+        href=url,
+        data_nav=label,
+        cls=f"flex flex-col items-center px-3 py-1 transition-colors relative {col}"
+    )
 
 def toast(text, variant="info"):
     col = {"info": "bg-blue-600", "success": "bg-emerald-600", "error": "bg-red-600"}.get(variant, "bg-blue-600")
@@ -228,8 +250,13 @@ def page(session, user, title, *content):
         cls="sticky top-0 z-20 border-b border-white/[0.06] bg-[#080c14]/80 backdrop-blur-xl"
     )
 
+    def _is_active(l, u):
+        if l == "Dashboard" and title in ["Dashboard", "Home"]:
+            return True
+        return l.lower() == title.lower() or l.lower() in title.lower()
+
     side = Aside(
-        *[_link(l, u, i) for l, u, i, _ in items],
+        *[_link(l, u, i, is_active=_is_active(l, u)) for l, u, i, _ in items],
         cls="hidden md:block w-64 shrink-0 border-r border-white/[0.06] p-4 space-y-1.5 min-h-[calc(100vh-65px)] bg-[#080c14]/30"
     )
 
@@ -237,7 +264,7 @@ def page(session, user, title, *content):
         Div(onclick="document.getElementById('more-sheet').classList.add('hidden')", cls="absolute inset-0 bg-black/70 backdrop-blur-sm"),
         Div(
             H3("Enterprise Navigation", cls="font-heading font-bold mb-4 text-lg text-white"),
-            *[_link(l, u, i) for l, u, i, _ in items[4:]],
+            *[_link(l, u, i, is_active=_is_active(l, u)) for l, u, i, _ in items[4:]],
             cls="absolute bottom-0 inset-x-0 card rounded-t-3xl p-6 pb-10 space-y-2 border-t border-white/10 shadow-2xl"
         ),
         id="more-sheet",
@@ -245,8 +272,7 @@ def page(session, user, title, *content):
     )
 
     bottom = Nav(
-        *[A(icon(i), Span(l.split()[0], cls="text-[10px] font-mono"), href=u, cls="flex flex-col items-center px-3 py-1 text-slate-400 hover:text-white transition-colors")
-          for l, u, i, _ in items[:4]],
+        *[_bottom_link(l, u, i, is_active=_is_active(l, u)) for l, u, i, _ in items[:4]],
         Button(
             icon("more_horiz"), Span("More", cls="text-[10px] font-mono"),
             onclick="document.getElementById('more-sheet').classList.remove('hidden')",
@@ -256,8 +282,19 @@ def page(session, user, title, *content):
         cls="md:hidden fixed bottom-0 inset-x-0 z-40 flex justify-around border-t border-white/[0.08] bg-[#080c14]/90 backdrop-blur-xl py-2 shadow-2xl"
     )
 
+    section_loader = Div(
+        Div(
+            loading_spinner(cls="w-5 h-5", border="border-white/20", border_top="border-t-cyan-400"),
+            Span("Loading...", id="section-loading-text", cls="text-xs font-mono font-semibold text-slate-200 tracking-wider uppercase"),
+            cls="inline-flex items-center gap-3.5 px-6 py-3.5 rounded-2xl bg-[#0f172a]/95 border border-blue-500/35 shadow-2xl backdrop-blur-xl"
+        ),
+        id="section-loading-overlay",
+        cls="fixed inset-0 z-50 pointer-events-none opacity-0 transition-opacity duration-150 flex items-center justify-center bg-[#080c14]/40 backdrop-blur-[2px]"
+    )
+
     return (
         Title(f"{title} | Technoverse"),
+        section_loader,
         alert_banner,
         banner,
         top,

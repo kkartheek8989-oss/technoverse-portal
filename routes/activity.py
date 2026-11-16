@@ -4,6 +4,7 @@ from fasthtml.common import *
 from core import rt, current_user, go, supabase
 from components import *
 from auth import RANKS
+from cache import get_cached, set_cached
 
 SECTIONS_LIST = ["all", "auth", "tasks", "events", "finance", "minutes", "team", "files", "learning", "join_requests"]
 
@@ -18,13 +19,16 @@ def activity_get(session, section: str = "all"):
     if rank < 4:
         return page(session, u, "Activity Logs", card(H2("Executive Access Only", cls="font-heading font-bold text-xl text-red-400 mb-2"), P("The permanent audit log is restricted to Executive Board members and the Club Coordinator.", cls="text-sm text-secondary")))
 
-    try:
-        q = supabase.table("activity").select("*").order("created_at", desc=True).limit(100)
-        if section != "all":
-            q = q.eq("section", section)
-        logs = q.execute().data or []
-    except Exception:
-        logs = []
+    logs = get_cached(f"activity_logs_{section}", ttl=10)
+    if logs is None:
+        try:
+            q = supabase.table("activity").select("*").order("created_at", desc=True).limit(100)
+            if section != "all":
+                q = q.eq("section", section)
+            logs = q.execute().data or []
+            set_cached(f"activity_logs_{section}", logs)
+        except Exception:
+            logs = []
 
     header = Div(
         Div(
