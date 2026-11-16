@@ -1,11 +1,12 @@
 import os
 import uuid
 import asyncio
+import urllib.parse
 from pathlib import Path
 from fasthtml.common import *
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, RedirectResponse
 from core import rt, current_user, go, supabase
 from db import _url
 from components import *
@@ -13,6 +14,22 @@ from auth import RANKS, can, log_activity
 from cache import get_cached, set_cached, invalidate_cache
 
 FOLDERS = ["General", "Circulars", "Documents", "Minutes", "Finance", "Event Assets", "Learning", "Media"]
+
+def ensure_bucket_public():
+    """Guarantee that the club-files bucket is permanently marked public."""
+    try:
+        supabase.storage.update_bucket("club-files", {"public": True})
+    except Exception:
+        try:
+            supabase.storage.create_bucket("club-files", {"public": True})
+        except Exception:
+            pass
+
+# Guarantee public status on load
+try:
+    ensure_bucket_public()
+except Exception:
+    pass
 
 def format_bytes(size):
     try:
@@ -45,7 +62,7 @@ def files_get(session, folder: str = "all", msg: str = "", error: str = ""):
     total_bytes = sum(f.get("size") or 0 for f in files)
     active_files = [f for f in files if folder == "all" or f.get("folder") == folder]
 
-    def file_row(f):
+    def file_row(f, idx=0):
         fid = f["id"]
         uploader_name = f.get("uploader_member", {}).get("name") if f.get("uploader_member") else "Member"
         can_delete = (f.get("uploader") == u["id"] or rank >= 4) and not session.get("view_as")
@@ -54,7 +71,7 @@ def files_get(session, folder: str = "all", msg: str = "", error: str = ""):
         is_cloud = "supabase.co" in (link or "") or f.get("size")
 
         delete_btn = Form(
-            btn_ghost(icon("delete", "text-red-400 text-sm"), type="submit", cls="p-1.5 hover:bg-red-500/10 border-0"),
+            btn_ghost(icon("delete", "text-red-400 text-sm"), type="submit", cls="p-1.5 hover:bg-red-500/10 border-0 rounded-lg transition-colors"),
             method="post", action=f"/files/{fid}/delete",
             onsubmit="return confirm('Permanently delete this file from the cloud repository?');",
             cls="inline-block"
@@ -71,11 +88,21 @@ def files_get(session, folder: str = "all", msg: str = "", error: str = ""):
         elif "audio" in mime or "video" in mime:
             ic = "video_file"
 
+        download_btn = A(
+            Span(icon("download", "text-xs mr-1.5 transition-transform group-hover:translate-y-0.5"), cls="shrink-0 dl-icon"),
+            Span("Download", cls="dl-text font-semibold"),
+            Span(cls="dl-spinner hidden spinner-ring w-3 h-3 border-white/30 border-t-white ml-1.5 shrink-0"),
+            href=f"/files/{fid}/download",
+            target="_blank",
+            onclick="handleFileDownload(this);",
+            cls="dl-btn group/btn text-xs py-1.5 px-3 font-semibold rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-600/20 hover:shadow-blue-600/40 active:scale-95 transition-all flex items-center cursor-pointer"
+        ) if link and link != "#" else ""
+
         return Div(
             Div(
-                Div(icon(ic, "text-blue-400 text-2xl"), cls="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 mr-3.5"),
+                Div(icon(ic, "text-blue-400 text-2xl group-hover:text-cyan-300 transition-colors"), cls="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 mr-3.5 group-hover:scale-105 group-hover:bg-blue-500/20 transition-all"),
                 Div(
-                    H4(f.get("name", "Document"), cls="font-semibold text-sm leading-snug text-white"),
+                    H4(f.get("name", "Document"), cls="font-semibold text-sm leading-snug text-white group-hover:text-blue-300 transition-colors truncate"),
                     Div(
                         Span(f"Folder: {f.get('folder', 'General')}", cls="text-xs text-slate-400 font-mono"),
                         Span("•", cls="text-slate-600 mx-1.5"),
@@ -90,16 +117,12 @@ def files_get(session, folder: str = "all", msg: str = "", error: str = ""):
             ),
             Div(
                 badge("SUPABASE CLOUD" if is_cloud else "EXTERNAL", "primary" if is_cloud else "secondary"),
-                A(
-                    btn_primary(icon("download", "text-xs mr-1"), "Download", cls="text-xs py-1.5 px-3 font-semibold"),
-                    href=link,
-                    target="_blank",
-                    download=""
-                ) if link and link != "#" else "",
+                download_btn,
                 delete_btn,
                 cls="flex items-center gap-2.5 shrink-0"
             ),
-            cls="flex items-center justify-between p-3.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.05] hover:border-blue-500/30 transition-all"
+            style=f"animation-delay: {min(idx * 35, 350)}ms;",
+            cls="animate-fade-in flex items-center justify-between p-3.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] hover:border-blue-500/35 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/5 group"
         )
 
     # Cloud File Upload Modal with Real-time Streaming Progress & Dropzone
@@ -393,25 +416,49 @@ def files_get(session, folder: str = "all", msg: str = "", error: str = ""):
         p="p-3 mb-6"
     )
 
+    download_script = Script("""
+    function handleFileDownload(btn) {
+        var icon = btn.querySelector('.dl-icon');
+        var text = btn.querySelector('.dl-text');
+        var spinner = btn.querySelector('.dl-spinner');
+        if (text) text.textContent = 'Preparing...';
+        if (icon) icon.classList.add('hidden');
+        if (spinner) spinner.classList.remove('hidden');
+        btn.classList.add('pointer-events-none', 'opacity-85');
+
+        setTimeout(function() {
+            if (text) text.textContent = 'Downloading...';
+        }, 400);
+
+        setTimeout(function() {
+            if (text) text.textContent = 'Download';
+            if (icon) icon.classList.remove('hidden');
+            if (spinner) spinner.classList.add('hidden');
+            btn.classList.remove('pointer-events-none', 'opacity-85');
+        }, 2800);
+    }
+    """)
+
     file_list = card(
         Div(
             H3(f"Stored Documents & Assets ({len(active_files)})", cls="font-heading font-semibold text-lg text-white"),
-            Span(f"Viewing: {folder.upper()}", cls="text-xs font-mono text-slate-400"),
-            cls="flex items-center justify-between mb-4"
+            Span(f"Viewing: {folder.upper()}", cls="text-xs font-mono text-slate-400 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg"),
+            cls="flex items-center justify-between mb-4 pb-2 border-b border-white/5"
         ),
         Div(
-            *[file_row(f) for f in active_files] or [
+            *[file_row(f, idx) for idx, f in enumerate(active_files)] or [
                 Div(
                     icon("cloud_off", "text-4xl text-slate-500 mb-2"),
                     P("No files stored in this folder yet. Click 'Upload File to Cloud' above to add documents.", cls="text-slate-400 text-sm text-center font-mono"),
                     cls="text-center py-12"
                 )
             ],
-            cls="space-y-2.5"
-        )
+            cls="space-y-3"
+        ),
+        cls="shadow-2xl border border-white/[0.06]"
     )
 
-    return page(session, u, "Files", header, alerts, stats, folder_chips, file_list, upload_modal, link_modal)
+    return page(session, u, "Files", header, alerts, stats, folder_chips, file_list, upload_modal, link_modal, download_script)
 
 @rt("/files/upload", methods=["POST"])
 async def files_upload_post(req: Request, session, folder: str, upload_file: UploadFile, custom_name: str = ""):
@@ -446,6 +493,9 @@ async def files_upload_post(req: Request, session, folder: str, upload_file: Upl
     storage_path = f"{folder.lower().replace(' ', '_')}/{uuid.uuid4().hex[:8]}_{original_name}"
     content_type = upload_file.content_type or "application/octet-stream"
 
+    # Ensure bucket is public
+    ensure_bucket_public()
+
     # Non-blocking async upload to Supabase Storage bucket 'club-files'
     try:
         await asyncio.to_thread(
@@ -454,7 +504,8 @@ async def files_upload_post(req: Request, session, folder: str, upload_file: Upl
             contents,
             {"content-type": content_type, "upsert": "true"}
         )
-        pub_url = f"{_url}/storage/v1/object/public/club-files/{storage_path}"
+        encoded_storage_path = urllib.parse.quote(storage_path, safe="/")
+        pub_url = f"{_url}/storage/v1/object/public/club-files/{encoded_storage_path}"
     except Exception as e:
         print("Supabase cloud upload failed:", e)
         if is_json:
@@ -493,6 +544,41 @@ async def files_upload_post(req: Request, session, folder: str, upload_file: Upl
         })
 
     return go(f"/files?msg=File+'{display_name}'+successfully+stored+in+Supabase+Cloud+Storage!")
+
+@rt("/files/{fid}/download", methods=["GET"])
+def files_download_get(session, fid: int):
+    u = current_user(session)
+    if not u:
+        return go("/login")
+
+    try:
+        f = supabase.table("files").select("*").eq("id", fid).single().execute().data
+    except Exception as e:
+        print("Download lookup error:", e)
+        return go("/files?error=File+lookup+failed.")
+
+    if not f:
+        return go("/files?error=File+not+found.")
+
+    path = f.get("path") or ""
+    link_url = f.get("link_url") or ""
+
+    # External cloud URLs (Drive, GitHub, Dropbox, etc.)
+    if link_url.startswith("http") and "supabase.co" not in link_url:
+        return RedirectResponse(link_url, status_code=302)
+
+    # Guarantee bucket is public
+    ensure_bucket_public()
+
+    if path and not path.startswith("http"):
+        encoded_path = urllib.parse.quote(path, safe="/")
+        download_url = f"{_url}/storage/v1/object/public/club-files/{encoded_path}"
+    elif link_url:
+        download_url = link_url
+    else:
+        return go("/files?error=File+path+is+missing.")
+
+    return RedirectResponse(download_url, status_code=302)
 
 @rt("/files/new", methods=["POST"])
 def files_new_post(session, name: str, folder: str, link_url: str):
