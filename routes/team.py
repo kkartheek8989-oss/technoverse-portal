@@ -77,14 +77,20 @@ def team_get(session, role_filter: str = "all", search: str = ""):
 
         return card(
             Div(
-                avatar(m.get("name", "?"), cls="w-12 h-12 text-sm"),
                 Div(
-                    H3(m.get("name", "Unknown"), cls="font-heading font-bold text-base leading-tight"),
-                    P(m.get("roll", ""), cls="font-mono text-xs text-muted font-bold mt-0.5"),
-                    cls="flex-1 min-w-0"
+                    avatar(m.get("name", "?"), cls="w-11 h-11 text-xs shrink-0"),
+                    Div(
+                        H3(m.get("name", "Unknown"), cls="font-heading font-bold text-sm leading-snug truncate"),
+                        P(m.get("roll", ""), cls="font-mono text-[11px] text-slate-400 font-bold mt-0.5"),
+                        cls="flex-1 min-w-0"
+                    ),
+                    cls="flex items-center gap-3 min-w-0 flex-1"
                 ),
-                role_form,
-                cls="flex items-center gap-3 mb-4"
+                Div(
+                    role_form,
+                    cls="shrink-0 mt-2 sm:mt-0"
+                ),
+                cls="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4"
             ),
             Div(
                 Div(icon("mail", "text-xs text-muted mr-1.5"), Span(m.get("email", ""), cls="text-xs text-secondary truncate"), cls="flex items-center mb-1"),
