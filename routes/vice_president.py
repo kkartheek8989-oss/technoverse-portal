@@ -19,7 +19,7 @@ def vice_president_dashboard(session, msg: str = "", error: str = ""):
     user = current_user(session)
     if not user:
         return go("/login")
-    if user["role"] not in ["vice_president", "club_coordinator"]:
+    if user["role"] not in ["vice_president", "club_coordinator", "president"]:
         return go("/?error=Access+Restricted:+The+VP+Operations+Command+is+exclusively+reserved+for+the+Vice+President.")
 
     # Fetch recent VP Dispatches from tasks
@@ -235,7 +235,7 @@ def vice_president_dashboard(session, msg: str = "", error: str = ""):
 @rt("/vice-president/dispatch", methods=["POST"])
 def vp_dispatch_post(session, title: str, assigned_to: str, priority: str, description: str):
     user = current_user(session)
-    if not user or user["role"] not in ["vice_president", "club_coordinator"]:
+    if not user or user["role"] not in ["vice_president", "club_coordinator", "president"]:
         return go("/login")
 
     clean_title = (title or "").strip()
@@ -269,7 +269,7 @@ def vp_dispatch_post(session, title: str, assigned_to: str, priority: str, descr
 @rt("/vice-president/clear-item", methods=["POST"])
 def vp_clear_item_post(session, item_id: str):
     user = current_user(session)
-    if not user or user["role"] not in ["vice_president", "club_coordinator"]:
+    if not user or user["role"] not in ["vice_president", "club_coordinator", "president"]:
         return go("/login")
 
     try:

@@ -202,8 +202,8 @@ def page(session, user, title, *content):
     # Exclusive executive desks for President and Vice President
     if role in ["president", "club_coordinator"]:
         items.insert(1, ("President Desk", "/president", "gavel", 4))
-    if role in ["vice_president", "club_coordinator"]:
-        idx = 2 if role == "club_coordinator" else 1
+    if role in ["vice_president", "club_coordinator", "president"]:
+        idx = 2 if role in ["club_coordinator", "president"] else 1
         items.insert(idx, ("VP Operations", "/vice-president", "military_tech", 4))
     # Secret Admin Control CMS suite exclusively for President and Club Coordinator
     if role in ["president", "club_coordinator"]:
@@ -240,7 +240,7 @@ def page(session, user, title, *content):
             ),
             Div(
                 hari_university_badge(),
-                badge(f"{real.replace('_', ' ').upper()} R{RANKS.get(real, 1)}", "amber" if real == "club_coordinator" else "primary"),
+                badge(f"{real.replace('_', ' ').upper()} R{RANKS.get(real, 1)}", "amber" if real in ("club_coordinator", "president") else "primary"),
                 avatar(user["name"]),
                 A(icon("logout"), href="/logout", cls="text-slate-400 hover:text-white transition-colors p-1", title="Sign out"),
                 cls="flex items-center gap-3"

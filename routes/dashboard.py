@@ -126,6 +126,7 @@ def dashboard_get(session):
                 Div(
                     A(btn_primary(icon("gavel", "text-sm mr-1.5"), "Presidential Desk", cls="py-2.5 px-3.5 text-xs font-semibold"), href="/president"),
                     A(btn_danger(icon("admin_panel_settings", "text-sm mr-1.5"), "Admin Control", cls="py-2.5 px-3.5 text-xs font-semibold"), href="/admin-control"),
+                    A(btn_primary(icon("military_tech", "text-sm mr-1.5"), "VP Operations", cls="py-2.5 px-3.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500"), href="/vice-president"),
                     A(btn_ghost(icon("person_add", "text-sm mr-1.5"), "Provision Members", cls="py-2.5 px-3.5 text-xs font-semibold"), href="/team"),
                     cls="flex flex-wrap items-center gap-2 mt-3 sm:mt-0"
                 ),

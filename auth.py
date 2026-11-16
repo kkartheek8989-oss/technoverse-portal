@@ -8,7 +8,7 @@ RANKS = {
     "technical_lead": 3,
     "event_coordinator": 3,
     "vice_president": 4,
-    "president": 4,
+    "president": 5,
     "club_coordinator": 5
 }
 
@@ -62,15 +62,14 @@ def is_rank_4_plus(role: str) -> bool:
 def is_club_coordinator(role: str) -> bool:
     return role == "club_coordinator"
 
-def log_activity(session, action, section, record_id=None, summary="", old_value=None, new_value=None):
-    """Append-only audit row. Always records the REAL user, even during view-as."""
-    if not session.get("uid"):
-        return
+import threading
+
+def _async_log_activity(uid, name, role, action, section, record_id, summary, old_value, new_value):
     try:
         supabase.table("activity").insert({
-            "member_id": session["uid"],
-            "member_name": session.get("name"),
-            "role": session.get("role"),
+            "member_id": uid,
+            "member_name": name,
+            "role": role,
             "action": action,
             "section": section,
             "record_id": str(record_id) if record_id else None,
@@ -80,3 +79,13 @@ def log_activity(session, action, section, record_id=None, summary="", old_value
         }).execute()
     except Exception as e:
         print("activity log failed:", e)
+
+def log_activity(session, action, section, record_id=None, summary="", old_value=None, new_value=None):
+    """Append-only audit row. Non-blocking daemon thread so user requests never wait for audit roundtrips."""
+    if not session.get("uid"):
+        return
+    threading.Thread(
+        target=_async_log_activity,
+        args=(session["uid"], session.get("name"), session.get("role"), action, section, record_id, summary, old_value, new_value),
+        daemon=True
+    ).start()

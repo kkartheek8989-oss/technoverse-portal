@@ -6,7 +6,7 @@ from cache import get_cached, set_cached, invalidate_cache
 
 ROLES_LIST = [
     ("club_coordinator", "Club Coordinator (Superadmin - Rank 5)"),
-    ("president", "President (Executive - Rank 4)"),
+    ("president", "President (Executive Head - Rank 5)"),
     ("vice_president", "Vice President (Executive - Rank 4)"),
     ("secretary", "Secretary (Minutes Head - Rank 3)"),
     ("treasurer", "Treasurer (Finance Head - Rank 3)"),
@@ -17,7 +17,7 @@ ROLES_LIST = [
 
 ROLE_COLORS = {
     "club_coordinator": "amber",
-    "president": "primary",
+    "president": "amber",
     "vice_president": "primary",
     "secretary": "secondary",
     "treasurer": "secondary",
@@ -34,8 +34,8 @@ def edit_modal_for(m, u, roles_list):
     # Both Club Coordinator and President have full administrative access to all roles
     avail_roles = roles_list
 
-    # Delete permission: Both Coordinator and President can delete members (cannot delete COORD01 or self)
-    can_delete = (u["role"] in ("club_coordinator", "president")) and not is_self and (m.get("roll") != "COORD01")
+    # Delete permission: Both Coordinator and President can delete members (cannot delete root executive accounts or self)
+    can_delete = (u["role"] in ("club_coordinator", "president")) and not is_self and (m.get("roll") not in ("COORD01", "26ET103047"))
 
     return Div(
         Div(onclick=f"document.getElementById('edit-modal-{mid}').classList.add('hidden')", cls="absolute inset-0 bg-black/75 backdrop-blur-sm"),
@@ -414,11 +414,11 @@ def team_delete_post(session, mid: str):
     if str(u["id"]) == str(mid):
         return go("/team?error=Cannot+delete+your+own+account.")
 
-    # Check if target is root COORD01
+    # Check if target is root COORD01 or root President
     try:
         target = supabase.table("members").select("roll, name").eq("id", mid).single().execute().data
-        if target and target.get("roll") == "COORD01":
-            return go("/team?error=The+Club+Coordinator+root+account+cannot+be+deleted.")
+        if target and target.get("roll") in ("COORD01", "26ET103047"):
+            return go("/team?error=Protected+executive+root+accounts+cannot+be+deleted.")
     except Exception:
         pass
 

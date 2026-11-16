@@ -12,7 +12,7 @@ def settings_get(session, tab: str = "profile", success: str = "", error: str = 
     role = session.get("view_as") or u["role"]
     rank = RANKS.get(role, 1)
 
-    is_coordinator = (u["role"] == "club_coordinator")
+    is_coordinator = (u["role"] in ("club_coordinator", "president"))
 
     header = Div(
         H1("Portal Settings & Governance", cls="font-heading font-bold text-2xl"),
@@ -128,7 +128,7 @@ def settings_password_post(session, current_pw: str, new_pw: str, confirm_pw: st
 @rt("/settings/admin", methods=["POST"])
 def settings_admin_post(session, club_name: str, fiscal_term: str, expense_threshold: str):
     u = current_user(session)
-    if not u or u["role"] != "club_coordinator" or session.get("view_as"):
+    if not u or u["role"] not in ("club_coordinator", "president") or session.get("view_as"):
         return go("/login")
 
     try:

@@ -1,9 +1,13 @@
 import os
 import uuid
+import asyncio
 from pathlib import Path
 from fasthtml.common import *
 from starlette.datastructures import UploadFile
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from core import rt, current_user, go, supabase
+from db import _url
 from components import *
 from auth import RANKS, can, log_activity
 from cache import get_cached, set_cached, invalidate_cache
@@ -98,38 +102,212 @@ def files_get(session, folder: str = "all", msg: str = "", error: str = ""):
             cls="flex items-center justify-between p-3.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.05] hover:border-blue-500/30 transition-all"
         )
 
-    # Cloud File Upload Modal
+    # Cloud File Upload Modal with Real-time Streaming Progress & Dropzone
+    upload_script = Script("""
+    function updateDropzoneInfo(input) {
+        if (input.files && input.files[0]) {
+            const f = input.files[0];
+            const sz = (f.size / (1024*1024)).toFixed(2);
+            document.getElementById('dropzone-text').textContent = f.name;
+            document.getElementById('dropzone-sub').textContent = sz + ' MB • ' + (f.type || 'Document');
+            const dz = document.getElementById('dropzone-box');
+            dz.classList.add('border-emerald-500/60', 'bg-emerald-500/[0.06]');
+            dz.classList.remove('border-blue-500/30', 'bg-blue-500/[0.02]');
+        }
+    }
+
+    let activeCloudXhr = null;
+
+    function cancelCloudUpload() {
+        if (activeCloudXhr) {
+            activeCloudXhr.abort();
+            activeCloudXhr = null;
+        }
+        const prog = document.getElementById('cloud-upload-progress-container');
+        if (prog) prog.classList.add('hidden');
+        const sBtn = document.getElementById('cloud-upload-submit-btn');
+        if (sBtn) {
+            sBtn.disabled = false;
+            sBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        document.getElementById('cloud-upload-modal').classList.add('hidden');
+    }
+
+    function handleFastCloudUpload(e) {
+        e.preventDefault();
+        const form = e.target;
+        const fileInput = document.getElementById('file-upload-input');
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+            alert('Please select or drop a file to upload.');
+            return false;
+        }
+        const progressContainer = document.getElementById('cloud-upload-progress-container');
+        const progressBar = document.getElementById('cloud-upload-progress-bar');
+        const progressPercent = document.getElementById('cloud-upload-percent');
+        const progressStatus = document.getElementById('cloud-upload-status');
+        const progressSpeed = document.getElementById('cloud-upload-speed');
+        const progressBytes = document.getElementById('cloud-upload-bytes');
+        const submitBtn = document.getElementById('cloud-upload-submit-btn');
+        const errorBox = document.getElementById('cloud-upload-error');
+
+        if (errorBox) errorBox.classList.add('hidden');
+        if (progressContainer) progressContainer.classList.remove('hidden');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        const xhr = new XMLHttpRequest();
+        activeCloudXhr = xhr;
+        const startTime = Date.now();
+
+        xhr.upload.onprogress = function(evt) {
+            if (evt.lengthComputable) {
+                const percent = Math.min(99, Math.round((evt.loaded / evt.total) * 100));
+                if (progressBar) progressBar.style.width = percent + '%';
+                if (progressPercent) progressPercent.textContent = percent + '%';
+
+                const mbLoaded = (evt.loaded / (1024 * 1024)).toFixed(2);
+                const mbTotal = (evt.total / (1024 * 1024)).toFixed(2);
+                const elapsed = (Date.now() - startTime) / 1000;
+                const speed = elapsed > 0.1 ? ((evt.loaded / (1024 * 1024)) / elapsed).toFixed(1) : '0';
+
+                if (progressBytes) progressBytes.textContent = `${mbLoaded} / ${mbTotal} MB`;
+                if (progressSpeed) progressSpeed.textContent = `${speed} MB/s`;
+
+                if (percent < 98) {
+                    if (progressStatus) progressStatus.textContent = 'Uploading to Server...';
+                } else {
+                    if (progressStatus) progressStatus.innerHTML = '<span class="inline-block animate-spin mr-1">⚡</span> Storing in Supabase Cloud Bucket...';
+                }
+            }
+        };
+
+        xhr.onload = function() {
+            activeCloudXhr = null;
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (progressBar) {
+                        progressBar.style.width = '100%';
+                        progressBar.classList.remove('bg-gradient-to-r', 'from-blue-600', 'to-cyan-400');
+                        progressBar.classList.add('bg-emerald-500');
+                    }
+                    if (progressPercent) progressPercent.textContent = '100%';
+                    if (progressStatus) progressStatus.innerHTML = '✓ Stored in Supabase Cloud!';
+                    setTimeout(() => {
+                        window.location.href = res.redirect || '/files?msg=File+uploaded+successfully';
+                    }, 350);
+                } catch(err) {
+                    window.location.href = '/files?msg=File+stored+in+Supabase+Cloud!';
+                }
+            } else {
+                let errMsg = 'Upload failed. Please check connection and try again.';
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (res.error) errMsg = res.error;
+                } catch(e) {}
+                if (errorBox) {
+                    errorBox.textContent = errMsg;
+                    errorBox.classList.remove('hidden');
+                }
+                if (progressContainer) progressContainer.classList.add('hidden');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        };
+
+        xhr.onerror = function() {
+            activeCloudXhr = null;
+            if (errorBox) {
+                errorBox.textContent = 'Network error during upload. Please verify connectivity.';
+                errorBox.classList.remove('hidden');
+            }
+            if (progressContainer) progressContainer.classList.add('hidden');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        };
+
+        const formData = new FormData(form);
+        xhr.open('POST', form.action, true);
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.send(formData);
+        return false;
+    }
+    """)
+
     upload_modal = Div(
-        Div(onclick="document.getElementById('cloud-upload-modal').classList.add('hidden')", cls="absolute inset-0 bg-black/70 backdrop-blur-sm"),
+        Div(onclick="cancelCloudUpload()", cls="absolute inset-0 bg-black/75 backdrop-blur-sm"),
         card(
             Div(
                 Div(
                     H3("Upload to Supabase Cloud Storage", cls="font-heading font-bold text-xl text-white"),
-                    P("Files are stored directly in the official Supabase 'club-files' bucket.", cls="text-xs text-slate-400 mt-0.5"),
+                    P("High-speed direct streaming to official 'club-files' Supabase bucket.", cls="text-xs text-slate-400 mt-0.5"),
                     cls="flex-1"
                 ),
-                Button(icon("close"), onclick="document.getElementById('cloud-upload-modal').classList.add('hidden')", type="button", cls="text-slate-400 hover:text-white bg-transparent border-0 cursor-pointer text-xl"),
-                cls="flex items-start justify-between mb-5"
+                Button(icon("close"), onclick="cancelCloudUpload()", type="button", cls="text-slate-400 hover:text-white bg-transparent border-0 cursor-pointer text-xl"),
+                cls="flex items-start justify-between mb-5 pb-3 border-b border-white/[0.08]"
             ),
+            Div(id="cloud-upload-error", cls="hidden mb-4 p-3 bg-red-950/60 border border-red-500/40 rounded-xl text-xs text-red-200 font-mono"),
             Form(
+                # Dropzone File Selector
                 Div(
-                    Label("Select Local File", cls="block text-xs font-mono text-slate-400 mb-1.5"),
-                    Input(type="file", name="upload_file", required=True, cls="input w-full file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"),
-                    cls="mb-4"
+                    Div(
+                        icon("cloud_upload", "text-3xl text-blue-400 mb-2 block"),
+                        P("Click to browse or drag & drop file here", id="dropzone-text", cls="text-xs font-semibold text-slate-200 truncate px-2"),
+                        P("PDF, PNG, JPG, ZIP, DOCX up to 50MB", id="dropzone-sub", cls="text-[11px] text-slate-400 font-mono mt-0.5"),
+                        Input(type="file", id="file-upload-input", name="upload_file", required=True, onchange="updateDropzoneInfo(this)", cls="hidden"),
+                        id="dropzone-box",
+                        onclick="document.getElementById('file-upload-input').click()",
+                        ondragover="event.preventDefault(); this.classList.add('border-blue-400', 'bg-blue-500/10');",
+                        ondragleave="this.classList.remove('border-blue-400', 'bg-blue-500/10');",
+                        ondrop="""event.preventDefault(); this.classList.remove('border-blue-400', 'bg-blue-500/10');
+                                if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+                                    document.getElementById('file-upload-input').files = event.dataTransfer.files;
+                                    updateDropzoneInfo(document.getElementById('file-upload-input'));
+                                }""",
+                        cls="border-2 border-dashed border-blue-500/30 hover:border-blue-400/60 rounded-xl p-5 text-center cursor-pointer transition-all bg-blue-500/[0.03] hover:bg-blue-500/[0.08] mb-4"
+                    ),
+                    select_field("Target Cloud Folder", "folder", [(f, f) for f in FOLDERS]),
+                    input_field("Custom Display Name (Optional)", "custom_name", placeholder="Leave blank to keep original filename", required=False),
+                    id="cloud-upload-form-fields"
                 ),
-                select_field("Target Cloud Folder", "folder", [(f, f) for f in FOLDERS]),
-                input_field("Custom Display Name (Optional)", "custom_name", placeholder="Leave blank to keep original filename", required=False),
+                # Real-time Streaming Upload Progress Bar
                 Div(
-                    btn_ghost("Cancel", type="button", onclick="document.getElementById('cloud-upload-modal').classList.add('hidden')"),
-                    btn_primary(icon("cloud_upload", "text-sm mr-1"), "Upload to Supabase Cloud", type="submit", loading_text="Uploading to Cloud..."),
-                    cls="flex justify-end gap-3 mt-6 pt-4 border-t border-white/[0.08]"
+                    Div(
+                        Span("Uploading to Server...", id="cloud-upload-status", cls="text-xs font-mono font-medium text-cyan-300"),
+                        Span("0%", id="cloud-upload-percent", cls="text-xs font-mono font-bold text-white"),
+                        cls="flex items-center justify-between mb-1.5"
+                    ),
+                    Div(
+                        Div(id="cloud-upload-progress-bar", cls="h-full bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-500 rounded-full transition-all duration-150", style="width: 0%"),
+                        cls="w-full h-2 rounded-full bg-slate-800 border border-white/10 overflow-hidden mb-2"
+                    ),
+                    Div(
+                        Span("0 / 0 MB", id="cloud-upload-bytes", cls="text-[11px] font-mono text-slate-400"),
+                        Span("0 MB/s", id="cloud-upload-speed", cls="text-[11px] font-mono text-slate-400"),
+                        cls="flex items-center justify-between"
+                    ),
+                    id="cloud-upload-progress-container",
+                    cls="hidden mb-4 p-3.5 rounded-xl bg-blue-950/40 border border-blue-500/25"
                 ),
+                Div(
+                    btn_ghost("Cancel", type="button", onclick="cancelCloudUpload()"),
+                    btn_primary(icon("cloud_upload", "text-sm mr-1.5"), "Upload to Supabase Cloud", id="cloud-upload-submit-btn", type="submit"),
+                    cls="flex justify-end gap-3 mt-4 pt-3 border-t border-white/[0.08]"
+                ),
+                onsubmit="return handleFastCloudUpload(event);",
                 method="post",
                 action="/files/upload",
                 enctype="multipart/form-data"
             ),
-            cls="relative z-10 w-full max-w-lg mx-auto mt-20 border border-blue-500/25 bg-[#0f172a] shadow-2xl"
+            cls="relative z-10 w-full max-w-lg mx-auto mt-16 border border-blue-500/30 bg-[#0f172a] shadow-2xl"
         ),
+        upload_script,
         id="cloud-upload-modal",
         cls="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"
     )
@@ -236,20 +414,30 @@ def files_get(session, folder: str = "all", msg: str = "", error: str = ""):
     return page(session, u, "Files", header, alerts, stats, folder_chips, file_list, upload_modal, link_modal)
 
 @rt("/files/upload", methods=["POST"])
-async def files_upload_post(session, folder: str, upload_file: UploadFile, custom_name: str = ""):
+async def files_upload_post(req: Request, session, folder: str, upload_file: UploadFile, custom_name: str = ""):
     u = current_user(session)
+    is_json = "application/json" in req.headers.get("accept", "")
+
     if not u or session.get("view_as"):
+        if is_json:
+            return JSONResponse({"error": "Session expired or invalid. Please sign in again."}, status_code=401)
         return go("/login")
 
     if not upload_file or not upload_file.filename:
+        if is_json:
+            return JSONResponse({"error": "No file was selected for upload."}, status_code=400)
         return go("/files?error=No+file+was+selected+for+upload.")
 
     try:
         contents = await upload_file.read()
     except Exception as e:
+        if is_json:
+            return JSONResponse({"error": f"Could not read uploaded file: {str(e)[:50]}"}, status_code=400)
         return go(f"/files?error=Could+not+read+file:+{str(e)[:50]}")
 
     if not contents:
+        if is_json:
+            return JSONResponse({"error": "Uploaded file is empty (0 bytes)."}, status_code=400)
         return go("/files?error=Uploaded+file+is+empty.")
 
     original_name = Path(upload_file.filename).name
@@ -258,35 +446,51 @@ async def files_upload_post(session, folder: str, upload_file: UploadFile, custo
     storage_path = f"{folder.lower().replace(' ', '_')}/{uuid.uuid4().hex[:8]}_{original_name}"
     content_type = upload_file.content_type or "application/octet-stream"
 
-    # Upload to Supabase Storage bucket 'club-files'
+    # Non-blocking async upload to Supabase Storage bucket 'club-files'
     try:
-        supabase.storage.from_("club-files").upload(
+        await asyncio.to_thread(
+            supabase.storage.from_("club-files").upload,
             storage_path,
             contents,
             {"content-type": content_type, "upsert": "true"}
         )
-        pub_url = supabase.storage.from_("club-files").get_public_url(storage_path)
+        pub_url = f"{_url}/storage/v1/object/public/club-files/{storage_path}"
     except Exception as e:
         print("Supabase cloud upload failed:", e)
+        if is_json:
+            return JSONResponse({"error": f"Supabase storage error: {str(e)[:80]}"}, status_code=500)
         return go(f"/files?error=Supabase+storage+error:+{str(e)[:80]}")
 
-    # Record in files table
+    # Record in files table asynchronously
     try:
-        res = supabase.table("files").insert({
-            "name": display_name,
-            "folder": folder,
-            "path": storage_path,
-            "link_url": pub_url,
-            "size": len(contents),
-            "mime": content_type,
-            "uploader": u["id"]
-        }).execute()
+        res = await asyncio.to_thread(
+            lambda: supabase.table("files").insert({
+                "name": display_name,
+                "folder": folder,
+                "path": storage_path,
+                "link_url": pub_url,
+                "size": len(contents),
+                "mime": content_type,
+                "uploader": u["id"]
+            }).execute()
+        )
 
         if res.data:
             invalidate_cache("files_")
             log_activity(session, "cloud_file_upload", "files", res.data[0]["id"], f"Uploaded '{display_name}' ({format_bytes(len(contents))}) to Supabase Cloud")
     except Exception as e:
         print("Files table record insertion failed:", e)
+
+    if is_json:
+        return JSONResponse({
+            "status": "success",
+            "message": f"File '{display_name}' successfully stored in Supabase Cloud Storage!",
+            "name": display_name,
+            "url": pub_url,
+            "size": len(contents),
+            "folder": folder,
+            "redirect": f"/files?msg=File+'{display_name}'+successfully+stored+in+Supabase+Cloud+Storage!"
+        })
 
     return go(f"/files?msg=File+'{display_name}'+successfully+stored+in+Supabase+Cloud+Storage!")
 
